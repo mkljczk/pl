@@ -211,6 +211,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
       in_reply_to_account_id: nil,
       reblog: reblogged,
       content: reblogged[:content] || "",
+      content_map: reblogged[:content_map] || %{},
       created_at: created_at,
       reblogs_count: 0,
       replies_count: 0,
@@ -340,26 +341,28 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
         nil
       end
 
-    content =
-      object
-      |> render_content()
+    {content_html, content_html_map} =
+      get_content_and_map(%{
+        type: :html,
+        user: opts[:for],
+        activity: activity,
+        object: object,
+        chrono_order: chrono_order
+      })
 
-    content_html =
-      content
-      |> Activity.HTML.get_cached_scrubbed_html_for_activity(
-        User.html_filter_policy(opts[:for]),
-        activity,
-        "mastoapi:content:#{chrono_order}"
-      )
+    {content_plaintext, content_plaintext_map} =
+      get_content_and_map(%{
+        type: :plain,
+        user: opts[:for],
+        activity: activity,
+        object: object,
+        chrono_order: chrono_order
+      })
 
-    content_plaintext =
-      content
-      |> Activity.HTML.get_cached_stripped_html_for_activity(
-        activity,
-        "mastoapi:content:#{chrono_order}"
-      )
+    content_languages = Map.keys(content_html_map)
 
     summary = object.data["summary"] || ""
+    summary_map = object.data["summaryMap"] || %{}
 
     card =
       case Card.get_by_activity(activity) do
@@ -426,6 +429,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
       reblog: nil,
       card: card,
       content: content_html,
+      content_map: content_html_map,
       text: opts[:with_source] && get_source_text(object.data["source"]),
       created_at: created_at,
       edited_at: edited_at,
@@ -439,6 +443,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
       pinned: pinned?,
       sensitive: sensitive,
       spoiler_text: summary,
+      spoiler_text_map: summary_map,
       visibility: get_visibility(object),
       media_attachments: attachments,
       poll: render(PollView, "show.json", object: object, for: opts[:for]),
@@ -457,7 +462,9 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
         quote_url: object.data["quoteUrl"],
         quote_visible: visible_for_user?(quote_activity, opts[:for]),
         content: %{"text/plain" => content_plaintext},
+        content_map: %{"text/plain" => content_plaintext_map},
         spoiler_text: %{"text/plain" => summary},
+        spoiler_text_map: %{"text/plain" => summary_map},
         expires_at: expires_at,
         direct_conversation_id: direct_conversation_id,
         thread_muted: thread_muted?,
@@ -717,14 +724,18 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
     end
   end
 
-  def render_content(%{data: %{"name" => name, "type" => type}} = object)
+  def render_content(object) do
+    render_content(object, object.data["name"], object.data["content"])
+  end
+
+  def render_content(%{data: %{"type" => type}} = object, name, content)
       when not is_nil(name) and name != "" and type != "Event" do
     url = object.data["url"] || object.data["id"]
 
-    "<p><a href=\"#{url}\">#{name}</a></p>#{object.data["content"]}"
+    "<p><a href=\"#{url}\">#{name}</a></p>#{content}"
   end
 
-  def render_content(object), do: object.data["content"] || ""
+  def render_content(_object, _name, content), do: content || ""
 
   @doc """
   Builds a dictionary tags.
@@ -914,6 +925,71 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
   end
 
   def build_source_location(_), do: nil
+
+  defp get_content(%{
+         type: type,
+         content: content,
+         user: user,
+         activity: activity,
+         chrono_order: chrono_order,
+         language: language
+       })
+       when type in [:html, :plain] do
+    language = language || "und"
+    cache_key = "mastoapi:content:#{chrono_order}:#{language}"
+
+    if type == :html do
+      content
+      |> Activity.HTML.get_cached_scrubbed_html_for_activity(
+        User.html_filter_policy(user),
+        activity,
+        cache_key
+      )
+    else
+      content
+      |> Activity.HTML.get_cached_stripped_html_for_activity(
+        activity,
+        cache_key
+      )
+    end
+  end
+
+  defp get_content_and_map(%{
+         type: type,
+         user: user,
+         activity: activity,
+         object: object,
+         chrono_order: chrono_order
+       }) do
+    content_und =
+      get_content(%{
+        type: type,
+        user: user,
+        activity: activity,
+        content: render_content(object),
+        chrono_order: chrono_order,
+        language: "und"
+      })
+
+    content_map =
+      (object.data["contentMap"] || %{})
+      |> Enum.reduce(%{}, fn {lang, content}, acc ->
+        Map.put(
+          acc,
+          lang,
+          get_content(%{
+            type: type,
+            user: user,
+            activity: activity,
+            content: render_content(object, object.data["nameMap"][lang], content),
+            chrono_order: chrono_order,
+            language: lang
+          })
+        )
+      end)
+
+    {content_und, content_map}
+  end
 
   defp get_language(%{data: %{"language" => "und"}}), do: nil
 
