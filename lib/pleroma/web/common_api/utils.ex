@@ -10,6 +10,7 @@ defmodule Pleroma.Web.CommonAPI.Utils do
   alias Pleroma.Config
   alias Pleroma.Conversation.Participation
   alias Pleroma.Formatter
+  alias Pleroma.MultiLanguage
   alias Pleroma.Object
   alias Pleroma.Repo
   alias Pleroma.User
@@ -164,7 +165,7 @@ defmodule Pleroma.Web.CommonAPI.Utils do
               %{"name" => option["und"]}
             else
               %{
-                "name" => Pleroma.MultiLanguage.map_to_str(option, multiline: false),
+                "name" => MultiLanguage.map_to_str(option, multiline: false),
                 "nameMap" => option
               }
             end
@@ -192,7 +193,7 @@ defmodule Pleroma.Web.CommonAPI.Utils do
   end
 
   def make_poll_data(%{poll: %{options: options}} = data) when is_list(options) do
-    new_poll = Map.put(data.poll, :options_map, Enum.map(options, &%{"und" => &1}))
+    new_poll = Map.put(data.poll, :options_map, Enum.map(options, &MultiLanguage.str_to_map/1))
 
     data
     |> Map.put(:poll, new_poll)
