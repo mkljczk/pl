@@ -62,6 +62,7 @@ defmodule Pleroma.Upload do
           height: integer(),
           blurhash: String.t(),
           description: String.t(),
+          description_map: map(),
           path: String.t()
         }
   defstruct [
@@ -73,21 +74,44 @@ defmodule Pleroma.Upload do
     :height,
     :blurhash,
     :description,
+    :description_map,
     :path
   ]
 
   @config_impl Application.compile_env(:pleroma, [__MODULE__, :config_impl], Pleroma.Config)
 
   defp get_description(upload) do
-    case {upload.description, Pleroma.Config.get([Pleroma.Upload, :default_description])} do
-      {description, _} when is_binary(description) -> description
+    case {upload, Pleroma.Config.get([Pleroma.Upload, :default_description])} do
+      {%{description_map: %{} = description_map}, _} -> description_map
+      {%{description: description}, _} when is_binary(description) -> description
       {_, :filename} -> upload.name
       {_, str} when is_binary(str) -> str
       _ -> ""
     end
   end
 
-  @spec store(source, options :: [option()]) :: {:ok, map()} | {:error, any()}
+  defp validate_description_limit(%{} = description) do
+    len = Enum.reduce(description, 0, fn {_, content}, acc -> String.length(content) + acc end)
+
+    len <= Pleroma.Config.get([:instance, :description_limit])
+  end
+
+  defp validate_description_limit(description) when is_binary(description) do
+    String.length(description) <= Pleroma.Config.get([:instance, :description_limit])
+  end
+
+  defp description_fields(%{} = description) do
+    %{
+      "name" => Pleroma.MultiLanguage.map_to_str(description, multiline: false),
+      "nameMap" => description
+    }
+  end
+
+  defp description_fields(description) when is_binary(description) do
+    %{"name" => description}
+  end
+
+  @spec store(source, options :: [option()]) :: {:ok, Map.t()} | {:error, any()}
   @doc "Store a file. If using a `Plug.Upload{}` as the source, be sure to use `Majic.Plug` to ensure its content_type and filename is correct."
   def store(upload, opts \\ []) do
     opts = get_opts(opts)
@@ -96,9 +120,7 @@ defmodule Pleroma.Upload do
          upload = %__MODULE__{upload | path: upload.path || "#{upload.id}/#{upload.name}"},
          {:ok, upload} <- Pleroma.Upload.Filter.filter(opts.filters, upload),
          description = get_description(upload),
-         {_, true} <-
-           {:description_limit,
-            String.length(description) <= Pleroma.Config.get([:instance, :description_limit])},
+         {_, true} <- {:description_limit, validate_description_limit(description)},
          {:ok, url_spec} <- Pleroma.Uploaders.Uploader.put_file(opts.uploader, upload) do
       {:ok,
        %{
@@ -113,9 +135,9 @@ defmodule Pleroma.Upload do
            }
            |> Maps.put_if_present("width", upload.width)
            |> Maps.put_if_present("height", upload.height)
-         ],
-         "name" => description
+         ]
        }
+       |> Map.merge(description_fields(description))
        |> Maps.put_if_present("blurhash", upload.blurhash)}
     else
       {:description_limit, _} ->
@@ -156,6 +178,7 @@ defmodule Pleroma.Upload do
       uploader: Keyword.get(opts, :uploader, Pleroma.Config.get([__MODULE__, :uploader])),
       filters: Keyword.get(opts, :filters, Pleroma.Config.get([__MODULE__, :filters])),
       description: Keyword.get(opts, :description),
+      description_map: Keyword.get(opts, :description_map),
       base_url: base_url()
     }
   end
@@ -168,7 +191,8 @@ defmodule Pleroma.Upload do
          name: file.filename,
          tempfile: file.path,
          content_type: file.content_type,
-         description: opts.description
+         description: opts.description,
+         description_map: opts.description_map
        }}
     end
   end
