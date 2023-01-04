@@ -77,6 +77,35 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
         %{
           assigns: %{user: user},
           private: %{
+            open_api_spex: %{
+              body_params: %{description_map: %{} = description_map},
+              params: %{id: id}
+            }
+          }
+        } = conn,
+        _
+      ) do
+    with %Object{} = object <- Object.get_by_id(id),
+         :ok <- Object.authorize_access(object, user),
+         {_, {:ok, %{}}} <-
+           {:description_map, Pleroma.MultiLanguage.validate_map(description_map)},
+         {:ok, %Object{data: data}} <-
+           Object.update_data(object, %{
+             "name" => Pleroma.MultiLanguage.map_to_str(description_map),
+             "nameMap" => description_map
+           }) do
+      attachment_data = Map.put(data, "id", object.id)
+
+      render(conn, "attachment.json", %{attachment: attachment_data})
+    else
+      {:description_map, _} -> render_error(conn, 422, "description_map not valid")
+    end
+  end
+
+  def update(
+        %{
+          assigns: %{user: user},
+          private: %{
             open_api_spex: %{body_params: %{description: description}, params: %{id: id}}
           }
         } = conn,
