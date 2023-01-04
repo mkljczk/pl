@@ -228,7 +228,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
       mentions: mentions,
       tags: reblogged[:tags] || [],
       application: build_application(object.data["generator"]),
-      language: get_language(object),
+      language: get_language(object.data),
       emojis: [],
       pleroma: %{
         local: activity.local,
@@ -999,7 +999,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
     {content_und, content_map}
   end
 
-  defp get_language(%{data: %{"language" => "und"}}), do: nil
+  defp get_language(%{"language" => "und"}), do: nil
 
-  defp get_language(object), do: object.data["language"]
+  defp get_language(data), do: data["language"]
 end
