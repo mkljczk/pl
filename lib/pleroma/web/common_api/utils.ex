@@ -151,7 +151,6 @@ defmodule Pleroma.Web.CommonAPI.Utils do
   def make_poll_data(%{poll: %{options_map: options_map, expires_in: expires_in}} = data)
       when is_list(options_map) do
     limits = Config.get([:instance, :poll_limits])
-    is_single_language = data.poll[:is_single_language]
 
     options = options |> Enum.uniq()
 
@@ -161,6 +160,8 @@ defmodule Pleroma.Web.CommonAPI.Utils do
          :ok <- validate_poll_options_length(options_map, limits) do
       {option_notes, emoji} =
         Enum.map_reduce(options_map, %{}, fn option, emoji ->
+          is_single_language = Map.keys(option) == ["und"]
+
           name_attrs =
             if is_single_language do
               %{"name" => option["und"]}
@@ -196,8 +197,10 @@ defmodule Pleroma.Web.CommonAPI.Utils do
   def make_poll_data(%{poll: %{options: options}} = data) when is_list(options) do
     new_poll =
       data.poll
-      |> Map.put(:options_map, Enum.map(options, &MultiLanguage.str_to_map/1))
-      |> Map.put(:is_single_language, true)
+      |> Map.put(
+        :options_map,
+        Enum.map(options, &MultiLanguage.str_to_map(&1, lang: data[:language]))
+      )
 
     data
     |> Map.put(:poll, new_poll)
