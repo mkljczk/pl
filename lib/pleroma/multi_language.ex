@@ -9,19 +9,9 @@ defmodule Pleroma.MultiLanguage do
   defp sep(:multi), do: Pleroma.Config.get([__MODULE__, :separator])
   defp sep(:single), do: Pleroma.Config.get([__MODULE__, :single_line_separator])
 
-  def is_good_locale_code?(code) do
-    code
-    |> String.codepoints()
-    |> Enum.all?(&valid_char?/1)
-  end
+  def is_good_locale_code?(code) when is_binary(code), do: code =~ ~r<^[a-zA-Z0-9\-]+$>
 
-  # [a-zA-Z0-9-]
-  defp valid_char?(char) do
-    ("a" <= char and char <= "z") or
-      ("A" <= char and char <= "Z") or
-      ("0" <= char and char <= "9") or
-      char == "-"
-  end
+  def is_good_locale_code?(_code), do: false
 
   def validate_map(%{} = object) do
     {status, data} =

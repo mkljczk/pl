@@ -15,7 +15,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.QuestionOptionsValidator do
   embedded_schema do
     field(:name, :string)
     field(:nameRendered, :string)
-    field(:nameMap, ObjectValidators.MapOfString)
+    field(:nameMap, ObjectValidators.ContentLanguageMap)
 
     embeds_one :replies, Replies, primary_key: false do
       field(:totalItems, :integer)

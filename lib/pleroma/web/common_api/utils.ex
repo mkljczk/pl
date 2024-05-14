@@ -152,7 +152,7 @@ defmodule Pleroma.Web.CommonAPI.Utils do
       when is_list(options_map) do
     limits = Config.get([:instance, :poll_limits])
 
-    options = options |> Enum.uniq()
+    options_map = options_map |> Enum.uniq()
 
     with :ok <- validate_poll_expiration(expires_in, limits),
          :ok <- validate_poll_options_map(options_map),

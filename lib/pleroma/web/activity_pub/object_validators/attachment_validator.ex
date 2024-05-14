@@ -15,7 +15,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.AttachmentValidator do
     field(:type, :string, default: "Link")
     field(:mediaType, ObjectValidators.MIME, default: "application/octet-stream")
     field(:name, :string)
-    field(:nameMap, ObjectValidators.MapOfString)
+    field(:nameMap, ObjectValidators.ContentLanguageMap)
     field(:blurhash, :string)
 
     embeds_many :url, UrlObjectValidator, primary_key: false do

@@ -449,7 +449,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
       mentions: mentions,
       tags: build_tags(tags),
       application: build_application(object.data["generator"]),
-      language: get_language(object),
+      language: get_language(object.data),
       emojis: build_emojis(object.data["emoji"]),
       pleroma: %{
         local: activity.local,

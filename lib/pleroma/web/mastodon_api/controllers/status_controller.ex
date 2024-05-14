@@ -205,6 +205,26 @@ defmodule Pleroma.Web.MastodonAPI.StatusController do
     |> do_create
   end
 
+  def create(
+        %{
+          assigns: %{user: _user},
+          private: %{open_api_spex: %{body_params: %{status_map: _}}}
+        } = conn,
+        _
+      ) do
+    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
+  end
+
+  def create(
+        %{
+          assigns: %{user: _user},
+          private: %{open_api_spex: %{body_params: %{media_ids: _}}}
+        } = conn,
+        _
+      ) do
+    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
+  end
+
   defp do_create(
          %{assigns: %{user: user}, private: %{open_api_spex: %{body_params: params}}} = conn
        ) do
@@ -230,26 +250,6 @@ defmodule Pleroma.Web.MastodonAPI.StatusController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: message})
     end
-  end
-
-  def create(
-        %{
-          assigns: %{user: _user},
-          private: %{open_api_spex: %{body_params: %{status_map: _}}} = params
-        } = conn,
-        _
-      ) do
-    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
-  end
-
-  def create(
-        %{
-          assigns: %{user: _user},
-          private: %{open_api_spex: %{body_params: %{media_ids: _}}} = params
-        } = conn,
-        _
-      ) do
-    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
   end
 
   @doc "GET /api/v1/statuses/:id/history"
