@@ -65,6 +65,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
     |> status()
     |> summary()
     |> with_valid(&attachments/1)
+    |> with_valid(&language/1)
     |> with_valid(&full_payload/1)
     |> expires_at()
     |> poll()
@@ -78,7 +79,6 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
     |> with_valid(&context/1)
     |> sensitive()
     |> with_valid(&object/1)
-    |> with_valid(&language/1)
     |> preview?()
     |> with_valid(&changes/1)
     |> validate()
@@ -150,24 +150,25 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
     %__MODULE__{draft | params: params}
   end
 
-  defp language(draft) do
-    language =
-      draft.params[:language] ||
-        LanguageDetector.detect(
-          draft.content_html <> " " <> (draft.summary || draft.params[:name])
-        )
-
+  defp language(%{params: %{language: language}} = draft) when not is_nil(language) do
     if MultiLanguage.is_good_locale_code?(language) do
       %__MODULE__{draft | language: language}
     else
-      if draft.params[:language] do
-        add_error(
-          draft,
-          dgettext("errors", "language \"%{language}\" is invalid", language: language)
-        )
-      else
-        draft
-      end
+      add_error(
+        draft,
+        dgettext("errors", "language \"%{language}\" is invalid", language: language)
+      )
+    end
+  end
+
+  defp language(draft) do
+    detected_language =
+      LanguageDetector.detect(draft.status <> " " <> (draft.summary || draft.params[:summary]))
+
+    if MultiLanguage.is_good_locale_code?(detected_language) do
+      %__MODULE__{draft | language: detected_language}
+    else
+      draft
     end
   end
 
