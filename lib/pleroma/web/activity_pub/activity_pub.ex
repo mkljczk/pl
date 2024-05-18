@@ -1516,6 +1516,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
       |> restrict_announce_object_actor(opts)
       |> restrict_object(opts)
       |> restrict_filtered(opts)
+      |> restrict_rule(opts)
       |> restrict_quote_url(opts)
       |> restrict_rule(opts)
       |> maybe_restrict_deactivated_users(opts)
