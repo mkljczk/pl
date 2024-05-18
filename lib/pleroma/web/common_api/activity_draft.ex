@@ -161,7 +161,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
     end
   end
 
-  defp language(draft) do
+  defp language(%{status: status} = draft) when is_binary(status) do
     detected_language =
       LanguageDetector.detect(draft.status <> " " <> (draft.summary || draft.params[:summary]))
 
@@ -171,6 +171,8 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
       draft
     end
   end
+
+  defp language(draft), do: draft
 
   defp status(%{params: %{status_map: %{} = status_map}} = draft) do
     with {:ok, %{}} <- MultiLanguage.validate_map(status_map) do
