@@ -285,17 +285,13 @@ defmodule Pleroma.Notification do
         select: n.id
       )
 
-    {:ok, %{ids: {_, notification_ids}, marker: marker}} =
+    {:ok, %{marker: marker}} =
       Multi.new()
       |> Multi.update_all(:ids, query, set: [seen: true, updated_at: NaiveDateTime.utc_now()])
       |> Marker.multi_set_last_read_id(user, "notifications")
       |> Repo.transaction()
 
     Streamer.stream(["user", "user:notification"], marker)
-
-    for_user_query(user)
-    |> where([n], n.id in ^notification_ids)
-    |> Repo.all()
   end
 
   @spec read_one(User.t(), String.t()) ::
@@ -306,10 +302,6 @@ defmodule Pleroma.Notification do
       |> Multi.update(:update, changeset(notification, %{seen: true}))
       |> Marker.multi_set_last_read_id(user, "notifications")
       |> Repo.transaction()
-      |> case do
-        {:ok, %{update: notification}} -> {:ok, notification}
-        {:error, :update, changeset, _} -> {:error, changeset}
-      end
     end
   end
 
@@ -579,7 +571,7 @@ defmodule Pleroma.Notification do
     Enum.filter(potential_receivers, fn u -> u.ap_id in notification_enabled_ap_ids end)
   end
 
-  def get_notified_from_activity(_, _local_only), do: {[], []}
+  def get_notified_from_activity(_, _local_only), do: []
 
   def get_notified_subscribers_from_activity(activity, local_only \\ true)
 
@@ -597,7 +589,7 @@ defmodule Pleroma.Notification do
     Enum.filter(potential_receivers, fn u -> u.ap_id in notification_enabled_ap_ids end)
   end
 
-  def get_notified_subscribers_from_activity(_, _), do: {[], []}
+  def get_notified_subscribers_from_activity(_, _), do: []
 
   def get_notified_participants_from_activity(activity, local_only \\ true)
 
