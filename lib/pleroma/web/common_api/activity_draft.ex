@@ -151,7 +151,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   end
 
   defp language(%{params: %{language: language}} = draft) when not is_nil(language) do
-    if MultiLanguage.is_good_locale_code?(language) do
+    if MultiLanguage.good_locale_code?(language) do
       %__MODULE__{draft | language: language}
     else
       add_error(
@@ -165,7 +165,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
     detected_language =
       LanguageDetector.detect(draft.status <> " " <> (draft.summary || draft.params[:summary]))
 
-    if MultiLanguage.is_good_locale_code?(detected_language) do
+    if MultiLanguage.good_locale_code?(detected_language) do
       %__MODULE__{draft | language: detected_language}
     else
       draft

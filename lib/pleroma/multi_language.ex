@@ -9,16 +9,16 @@ defmodule Pleroma.MultiLanguage do
   defp sep(:multi), do: Pleroma.Config.get([__MODULE__, :separator])
   defp sep(:single), do: Pleroma.Config.get([__MODULE__, :single_line_separator])
 
-  def is_good_locale_code?(code) when is_binary(code), do: code =~ ~r<^[a-zA-Z0-9\-]+$>
+  def good_locale_code?(code) when is_binary(code), do: code =~ ~r<^[a-zA-Z0-9\-]+$>
 
-  def is_good_locale_code?(_code), do: false
+  def good_locale_code?(_code), do: false
 
   def validate_map(%{} = object) do
     {status, data} =
       object
       |> Enum.reduce({:ok, %{}}, fn
         {lang, value}, {status, acc} when is_binary(lang) and is_binary(value) ->
-          if is_good_locale_code?(lang) do
+          if good_locale_code?(lang) do
             {status, Map.put(acc, lang, value)}
           else
             {:modified, acc}
@@ -60,7 +60,7 @@ defmodule Pleroma.MultiLanguage do
 
   def str_to_map(data, opts \\ []) do
     with lang when is_binary(lang) <- opts[:lang],
-         true <- is_good_locale_code?(lang) do
+         true <- good_locale_code?(lang) do
       %{lang => data}
     else
       _ ->
