@@ -16,6 +16,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.AttachmentValidator do
     field(:mediaType, ObjectValidators.MIME, default: "application/octet-stream")
     field(:name, :string)
     field(:nameMap, ObjectValidators.ContentLanguageMap)
+    field(:summary, :string)
     field(:blurhash, :string)
 
     embeds_many :url, UrlObjectValidator, primary_key: false do
@@ -45,7 +46,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.AttachmentValidator do
       |> fix_url()
 
     struct
-    |> cast(data, [:id, :type, :mediaType, :name, :nameMap, :blurhash])
+    |> cast(data, [:id, :type, :mediaType, :name, :nameMap, :summary, :blurhash])
     |> cast_embed(:url, with: &url_changeset/2, required: true)
   end
 

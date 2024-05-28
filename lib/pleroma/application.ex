@@ -15,6 +15,7 @@ defmodule Pleroma.Application do
   @compat_name Mix.Project.config()[:compat_name]
   @version Mix.Project.config()[:version]
   @repository Mix.Project.config()[:source_url]
+  @compile_env Mix.env()
 
   def name, do: @name
   def compat_name, do: @compat_name
@@ -54,7 +55,11 @@ defmodule Pleroma.Application do
     Pleroma.HTML.compile_scrubbers()
     Pleroma.Config.Oban.warn()
     Config.DeprecationWarnings.warn()
-    Pleroma.Web.Plugs.HTTPSecurityPlug.warn_if_disabled()
+
+    if @compile_env != :test do
+      Pleroma.Web.Plugs.HTTPSecurityPlug.warn_if_disabled()
+    end
+
     Pleroma.ApplicationRequirements.verify!()
     load_custom_modules()
     Pleroma.Docs.JSON.compile()
@@ -112,7 +117,8 @@ defmodule Pleroma.Application do
         task_children() ++
         streamer_registry() ++
         background_migrators() ++
-        [Pleroma.Gopher.Server]
+        [Pleroma.Gopher.Server] ++
+        [Pleroma.Search.Healthcheck]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
