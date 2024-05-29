@@ -221,12 +221,12 @@ defmodule Pleroma.Web.ActivityPub.Builder do
       if draft.content_html_map do
         case Map.keys(draft.content_html_map) do
           ["und"] ->
-            %{"content" => MultiLanguage.map_to_str(draft.content_html_map, multiline: true)}
+            %{"content" => Map.get(draft.content_html_map, "und")}
 
           _ ->
             %{
               "contentMap" => draft.content_html_map,
-              "content" => MultiLanguage.map_to_str(draft.content_html_map, multiline: true)
+              "content" => Map.get(draft.content_html_map, draft.language)
             }
         end
       else
@@ -237,12 +237,12 @@ defmodule Pleroma.Web.ActivityPub.Builder do
       if draft.summary_map do
         case Map.keys(draft.summary_map) do
           ["und"] ->
-            %{"summary" => MultiLanguage.map_to_str(draft.summary_map, multiline: false)}
+            %{"summary" => Map.get(draft.summary_map, "und")}
 
           _ ->
             %{
               "summaryMap" => draft.summary_map,
-              "summary" => MultiLanguage.map_to_str(draft.summary_map, multiline: false)
+              "summary" => Map.get(draft.summary_map, draft.language)
             }
         end
       else
