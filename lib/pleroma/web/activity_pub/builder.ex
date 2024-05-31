@@ -11,7 +11,6 @@ defmodule Pleroma.Web.ActivityPub.Builder do
 
   alias Pleroma.Activity
   alias Pleroma.Emoji
-  alias Pleroma.MultiLanguage
   alias Pleroma.Object
   alias Pleroma.User
   alias Pleroma.Web.ActivityPub.Relay

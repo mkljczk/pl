@@ -13,7 +13,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.EnsureRePrepended do
   def history_awareness, do: :auto
 
   def filter_by_summary(
-        %{data: %{"summaryMap" => %{} = parent_summary_map}} = _in_reply_to,
+        %{data: %{"summaryMap" => %{} = parent_summary_map} = parent},
         %{"summaryMap" => %{} = child_summary_map} = child
       ) do
     fixed_summary_map =
@@ -25,9 +25,16 @@ defmodule Pleroma.Web.ActivityPub.MRF.EnsureRePrepended do
         end
       end)
 
+    fixed_summary =
+      with {:ok, fixed} <- fix_one(child["summary"], parent["summary"]) do
+        fixed
+      else
+        _ -> child["summary"]
+      end
+
     child
     |> Map.put("summaryMap", fixed_summary_map)
-    |> Map.put("summary", Pleroma.MultiLanguage.map_to_str(fixed_summary_map, multiline: false))
+    |> Map.put("summary", fixed_summary)
   end
 
   def filter_by_summary(

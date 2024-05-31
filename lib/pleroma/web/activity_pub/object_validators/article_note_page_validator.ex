@@ -86,9 +86,6 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.ArticleNotePageValidator do
     |> fix_attachments()
     |> CommonFixes.fix_quote_url()
     |> Transmogrifier.fix_emoji()
-    |> CommonFixes.fix_multilang_field("content", "contentMap", multiline: true)
-    |> CommonFixes.fix_multilang_field("summary", "summaryMap", multiline: false)
-    |> CommonFixes.fix_multilang_field("name", "nameMap", multiline: false)
     |> CommonFixes.maybe_add_language()
     |> CommonFixes.maybe_add_content_map()
   end

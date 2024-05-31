@@ -8,7 +8,6 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.QuestionOptionsValidator do
   import Ecto.Changeset
 
   alias Pleroma.EctoType.ActivityPub.ObjectValidators
-  alias Pleroma.Web.ActivityPub.ObjectValidators.CommonFixes
 
   @primary_key false
 
@@ -25,15 +24,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.QuestionOptionsValidator do
     field(:type, :string, default: "Note")
   end
 
-  defp fix(data) do
-    data
-    # name is used in Answers, so better not change it
-    |> CommonFixes.fix_multilang_field("nameRendered", "nameMap", multiline: false)
-  end
-
   def changeset(struct, data) do
-    data = fix(data)
-
     struct
     |> cast(data, [:name, :nameRendered, :nameMap, :type])
     |> cast_embed(:replies, with: &replies_changeset/2)

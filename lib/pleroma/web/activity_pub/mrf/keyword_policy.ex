@@ -88,16 +88,12 @@ defmodule Pleroma.Web.ActivityPub.MRF.KeywordPolicy do
     config = Pleroma.Config.get([:mrf_keyword, :replace])
 
     replace_kw = fn object ->
-      [
-        {"content", [multiline: true]},
-        {"name", [multiline: false]},
-        {"summary", [multiline: false]}
-      ]
-      |> Enum.filter(fn {field, _} ->
+      ["content", "name", "summary"]
+      |> Enum.filter(fn field ->
         is_map(object[field <> "Map"]) or
           (Map.has_key?(object, field) && object[field])
       end)
-      |> Enum.reduce(object, fn {field, opts}, object ->
+      |> Enum.reduce(object, fn field, object ->
         field_name_map = field <> "Map"
 
         with %{} = data_map <- object[field_name_map] do
@@ -108,7 +104,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.KeywordPolicy do
 
           object
           |> Map.put(field_name_map, fixed_data_map)
-          |> Map.put(field, Pleroma.MultiLanguage.map_to_str(fixed_data_map, opts))
+          |> Map.put(field, replace_keyword(object[field], config))
         else
           _ ->
             data = replace_keyword(object[field], config)

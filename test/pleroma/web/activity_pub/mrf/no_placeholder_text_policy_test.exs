@@ -32,7 +32,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.NoPlaceholderTextPolicyTest do
     }
 
     assert {:ok, res} = NoPlaceholderTextPolicy.filter(message)
-    assert res["object"]["content"] == "lol"
+    assert res["object"]["content"] == ""
     assert res["object"]["contentMap"] == %{"b" => "lol"}
 
     message = %{

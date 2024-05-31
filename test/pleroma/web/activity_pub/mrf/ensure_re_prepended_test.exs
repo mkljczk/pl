@@ -56,12 +56,11 @@ defmodule Pleroma.Web.ActivityPub.MRF.EnsureRePrependedTest do
                "c" => "another-object-summary"
              }
 
-      assert res["object"]["summary"] ==
-               Pleroma.MultiLanguage.map_to_str(res["object"]["summaryMap"], multiline: false)
+      assert res["object"]["summary"] == "re: object-summary"
     end
 
     test "it adds `re:` to summary object when child summary contains re-subject of parent summary " do
-s      message = %{
+      message = %{
         "type" => "Create",
         "object" => %{
           "summary" => "object-summary",

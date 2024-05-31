@@ -53,8 +53,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.NormalizeMarkupTest do
     assert {:ok, res} = NormalizeMarkup.filter(message)
     assert res["object"]["contentMap"] == %{"a" => @expected, "b" => @expected}
 
-    assert res["object"]["content"] ==
-             Pleroma.MultiLanguage.map_to_str(res["object"]["contentMap"], multiline: true)
+    assert res["object"]["content"] == "some"
   end
 
   test "history-aware" do

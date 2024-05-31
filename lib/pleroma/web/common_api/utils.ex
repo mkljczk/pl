@@ -167,7 +167,7 @@ defmodule Pleroma.Web.CommonAPI.Utils do
               %{"name" => option["und"]}
             else
               %{
-                "name" => MultiLanguage.map_to_str(option, multiline: false),
+                "name" => Map.get(option, data.language),
                 "nameMap" => option
               }
             end

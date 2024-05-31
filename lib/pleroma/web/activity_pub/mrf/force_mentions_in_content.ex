@@ -103,10 +103,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.ForceMentionsInContent do
 
         object
         |> Map.put("contentMap", fixed_content_map)
-        |> Map.put(
-          "content",
-          Pleroma.MultiLanguage.map_to_str(fixed_content_map, multiline: true)
-        )
+        |> Map.put("content", fix_content(object["content"] || "", mention_users))
       else
         _ ->
           # image-only posts from pleroma apparently reach this MRF without the content field

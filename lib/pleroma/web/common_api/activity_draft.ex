@@ -166,7 +166,11 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
       LanguageDetector.detect(draft.status <> " " <> (draft.summary || draft.params[:summary]))
 
     if MultiLanguage.good_locale_code?(detected_language) do
-      %__MODULE__{draft | language: detected_language}
+      %__MODULE__{
+        draft
+        | params: Map.put(draft.params, :language, detected_language),
+          language: detected_language
+      }
     else
       draft
     end
@@ -529,9 +533,9 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   defp differentiate_string_map(%{} = map), do: {nil, map}
   defp differentiate_string_map(str) when is_binary(str), do: {str, nil}
 
-  defp get_source_map(%{status_map: %{} = status_map} = _draft) do
+  defp get_source_map(%{status_map: %{} = status_map} = draft) do
     %{
-      "content" => Pleroma.MultiLanguage.map_to_str(status_map, mutiline: true),
+      "content" => Map.get(status_map, draft.language),
       "contentMap" => status_map
     }
   end

@@ -15,7 +15,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.NoPlaceholderTextPolicy do
   def filter(
         %{
           "type" => type,
-          "object" => %{"contentMap" => %{} = content_map, "attachment" => _} = _child_object
+          "object" => %{"contentMap" => %{} = content_map, "attachment" => _} = child_object
         } = object
       )
       when type in ["Create", "Update"] do
@@ -27,6 +27,13 @@ defmodule Pleroma.Web.ActivityPub.MRF.NoPlaceholderTextPolicy do
           Map.put(acc, lang, content)
         end
       end)
+
+    fixed_content =
+      if child_object["content"] in @placeholders do
+        ""
+      else
+        child_object["content"]
+      end
 
     fixed_object =
       if fixed_content_map == %{} do
@@ -40,10 +47,7 @@ defmodule Pleroma.Web.ActivityPub.MRF.NoPlaceholderTextPolicy do
       else
         object
         |> put_in(["object", "contentMap"], fixed_content_map)
-        |> put_in(
-          ["object", "content"],
-          Pleroma.MultiLanguage.map_to_str(fixed_content_map, multiline: true)
-        )
+        |> put_in(["object", "content"], fixed_content)
       end
 
     {:ok, fixed_object}

@@ -5,6 +5,7 @@
 defmodule Pleroma.Web.MastodonAPI.MediaController do
   use Pleroma.Web, :controller
 
+  alias Pleroma.MultiLanguage
   alias Pleroma.Object
   alias Pleroma.Web.ActivityPub.ActivityPub
   alias Pleroma.Web.Plugs.OAuthScopesPlug
@@ -24,17 +25,25 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
           conn,
         _
       ) do
-    with {:ok, object} <-
+    with language <- Map.get(data, :language),
+         {_, true} <-
+           {:valid_locale,
+            Map.get(data, :description_map) == nil or MultiLanguage.good_locale_code?(language)},
+         {:ok, object} <-
            ActivityPub.upload(
              file,
              actor: user.ap_id,
              description: Map.get(data, :description),
-             description_map: Map.get(data, :description_map)
+             description_map: Map.get(data, :description_map),
+             language: language
            ) do
       attachment_data = Map.put(object.data, "id", object.id)
 
       render(conn, "attachment.json", %{attachment: attachment_data})
     else
+      {:valid_locale, _} ->
+        render_error(conn, 422, "valid language must be provided with description_map")
+
       {:error, e} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -50,12 +59,17 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
           conn,
         _
       ) do
-    with {:ok, object} <-
+    with language <- Map.get(data, :language),
+         {_, true} <-
+           {:valid_locale,
+            Map.get(data, :description_map) == nil or MultiLanguage.good_locale_code?(language)},
+         {:ok, object} <-
            ActivityPub.upload(
              file,
              actor: user.ap_id,
              description: Map.get(data, :description),
-             description_map: Map.get(data, :description_map)
+             description_map: Map.get(data, :description_map),
+             language: language
            ) do
       attachment_data = Map.put(object.data, "id", object.id)
 
@@ -63,6 +77,9 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
       |> put_status(202)
       |> render("attachment.json", %{attachment: attachment_data})
     else
+      {:valid_locale, _} ->
+        render_error(conn, 422, "valid language must be provided with description_map")
+
       {:error, e} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -78,7 +95,7 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
           assigns: %{user: user},
           private: %{
             open_api_spex: %{
-              body_params: %{description_map: %{} = description_map},
+              body_params: %{description_map: %{} = description_map} = body_params,
               params: %{id: id}
             }
           }
@@ -87,18 +104,24 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
       ) do
     with %Object{} = object <- Object.get_by_id(id),
          :ok <- Object.authorize_access(object, user),
-         {_, {:ok, %{}}} <-
-           {:description_map, Pleroma.MultiLanguage.validate_map(description_map)},
+         language = Map.get(body_params, :language, object["language"]),
+         {_, true} <-
+           {:valid_locale, description_map == nil or MultiLanguage.good_locale_code?(language)},
+         {_, {:ok, %{}}} <- {:description_map, MultiLanguage.validate_map(description_map)},
          {:ok, %Object{data: data}} <-
            Object.update_data(object, %{
-             "name" => Pleroma.MultiLanguage.map_to_str(description_map),
+             "name" => Map.get(description_map, language),
              "nameMap" => description_map
            }) do
       attachment_data = Map.put(data, "id", object.id)
 
       render(conn, "attachment.json", %{attachment: attachment_data})
     else
-      {:description_map, _} -> render_error(conn, 422, "description_map not valid")
+      {:valid_locale, _} ->
+        render_error(conn, 422, "valid language must be provided with description_map")
+
+      {:description_map, _} ->
+        render_error(conn, 422, "description_map not valid")
     end
   end
 

@@ -91,23 +91,23 @@ defmodule Pleroma.Upload do
   end
 
   defp validate_description_limit(%{} = description) do
-    len = Enum.reduce(description, 0, fn {_, content}, acc -> String.length(content) + acc end)
-
-    len <= Pleroma.Config.get([:instance, :description_limit])
+    Enum.each(description, fn content ->
+      String.length(content) <= Pleroma.Config.get([:instance, :description_limit])
+    end)
   end
 
   defp validate_description_limit(description) when is_binary(description) do
     String.length(description) <= Pleroma.Config.get([:instance, :description_limit])
   end
 
-  defp description_fields(%{} = description) do
+  defp description_fields(%{} = description, language) do
     %{
-      "name" => Pleroma.MultiLanguage.map_to_str(description, multiline: false),
+      "name" => Map.get(description, language),
       "nameMap" => description
     }
   end
 
-  defp description_fields(description) when is_binary(description) do
+  defp description_fields(description, _) when is_binary(description) do
     %{"name" => description}
   end
 
@@ -121,6 +121,9 @@ defmodule Pleroma.Upload do
          {:ok, upload} <- Pleroma.Upload.Filter.filter(opts.filters, upload),
          description = get_description(upload),
          {_, true} <- {:description_limit, validate_description_limit(description)},
+         {_, true} <-
+           {:valid_locale,
+            opts[:language] == nil or Pleroma.MultiLanguage.good_locale_code?(opts[:language])},
          {:ok, url_spec} <- Pleroma.Uploaders.Uploader.put_file(opts.uploader, upload) do
       {:ok,
        %{
@@ -137,8 +140,9 @@ defmodule Pleroma.Upload do
            |> Maps.put_if_present("height", upload.height)
          ]
        }
-       |> Map.merge(description_fields(description))
-       |> Maps.put_if_present("blurhash", upload.blurhash)}
+       |> Map.merge(description_fields(description, opts[:language]))
+       |> Maps.put_if_present("blurhash", upload.blurhash)
+       |> Maps.put_if_present("language", opts[:language])}
     else
       {:description_limit, _} ->
         {:error, :description_too_long}

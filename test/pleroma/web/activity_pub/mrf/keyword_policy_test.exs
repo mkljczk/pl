@@ -318,23 +318,16 @@ defmodule Pleroma.Web.ActivityPub.MRF.KeywordPolicyTest do
       {:ok,
        %{
          "object" => %{
-           "content" => content,
-           "contentMap" =>
-             %{
-               "a" => "ZFS is free software",
-               "b" => "mew mew is also free software"
-             } = content_map,
-           "summary" => summary,
-           "summaryMap" =>
-             %{
-               "a" => "ZFS is very free software",
-               "b" => "mew mew is also very free software"
-             } = summary_map
+           "contentMap" => %{
+             "a" => "ZFS is free software",
+             "b" => "mew mew is also free software"
+           },
+           "summaryMap" => %{
+             "a" => "ZFS is very free software",
+             "b" => "mew mew is also very free software"
+           }
          }
        }} = KeywordPolicy.filter(message)
-
-      assert content == Pleroma.MultiLanguage.map_to_str(content_map, multiline: true)
-      assert summary == Pleroma.MultiLanguage.map_to_str(summary_map, multiline: false)
     end
 
     test "replaces keyword if string matches in history" do
