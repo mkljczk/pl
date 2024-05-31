@@ -321,6 +321,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusControllerTest do
         |> put_req_header("idempotency-key", idempotency_key)
         |> post("/api/v1/statuses", %{
           "spoiler_text_map" => %{"a" => "mew mew", "b" => "lol lol"},
+          "language" => "a",
           "status" => "mewlol",
           "sensitive" => "0"
         })
@@ -864,7 +865,8 @@ defmodule Pleroma.Web.MastodonAPI.StatusControllerTest do
               %{"a" => "Misato", "b" => "3"}
             ],
             "expires_in" => 420
-          }
+          },
+          "language" => "a"
         })
 
       response = json_response_and_validate_schema(conn, 200)

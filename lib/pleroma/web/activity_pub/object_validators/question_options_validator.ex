@@ -13,7 +13,6 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.QuestionOptionsValidator do
 
   embedded_schema do
     field(:name, :string)
-    field(:nameRendered, :string)
     field(:nameMap, ObjectValidators.ContentLanguageMap)
 
     embeds_one :replies, Replies, primary_key: false do
@@ -26,7 +25,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.QuestionOptionsValidator do
 
   def changeset(struct, data) do
     struct
-    |> cast(data, [:name, :nameRendered, :nameMap, :type])
+    |> cast(data, [:name, :nameMap, :type])
     |> cast_embed(:replies, with: &replies_changeset/2)
     |> validate_inclusion(:type, ["Note"])
     |> validate_required([:name, :type])

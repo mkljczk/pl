@@ -56,7 +56,8 @@ defmodule Pleroma.Web.ActivityPub.BuilderTest do
         tags: [],
         summary_map: %{"a" => "mew", "b" => "lol"},
         cc: [],
-        extra: %{}
+        extra: %{},
+        language: "a"
       }
 
       assert {:ok,

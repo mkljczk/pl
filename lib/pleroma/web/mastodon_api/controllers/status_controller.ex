@@ -212,7 +212,14 @@ defmodule Pleroma.Web.MastodonAPI.StatusController do
         } = conn,
         _
       ) do
-    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
+    create(
+      put_in(
+        conn,
+        [Access.key(:private), Access.key(:open_api_spex), Access.key(:body_params), :status],
+        ""
+      ),
+      %{}
+    )
   end
 
   def create(
@@ -222,7 +229,14 @@ defmodule Pleroma.Web.MastodonAPI.StatusController do
         } = conn,
         _
       ) do
-    create(conn |> put_in([:private, :open_api_spex, :body_params, :status], ""), %{})
+    create(
+      put_in(
+        conn,
+        [Access.key(:private), Access.key(:open_api_spex), Access.key(:body_params), :status],
+        ""
+      ),
+      %{}
+    )
   end
 
   defp do_create(

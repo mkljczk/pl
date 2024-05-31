@@ -163,7 +163,9 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
 
   defp language(%{status: status} = draft) when is_binary(status) do
     detected_language =
-      LanguageDetector.detect(draft.status <> " " <> (draft.summary || draft.params[:summary]))
+      LanguageDetector.detect(
+        draft.status <> " " <> (draft.summary || draft.params[:summary] || draft.params[:name])
+      )
 
     if MultiLanguage.good_locale_code?(detected_language) do
       %__MODULE__{
@@ -535,7 +537,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
 
   defp get_source_map(%{status_map: %{} = status_map} = draft) do
     %{
-      "content" => Map.get(status_map, draft.language),
+      "content" => Map.get(draft, :status),
       "contentMap" => status_map
     }
   end

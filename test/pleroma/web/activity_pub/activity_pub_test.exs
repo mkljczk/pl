@@ -1412,7 +1412,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
     test "sets a multilang description if given", %{test_file: file} do
       {:ok, %Object{} = object} =
-        ActivityPub.upload(file, description_map: %{"a" => "mew", "b" => "lol"})
+        ActivityPub.upload(file, description_map: %{"a" => "mew", "b" => "lol"}, language: "a")
 
       assert object.data["nameMap"] == %{"a" => "mew", "b" => "lol"}
     end

@@ -55,7 +55,8 @@ defmodule Pleroma.Web.MastodonAPI.MediaControllerTest do
         |> put_req_header("content-type", "multipart/form-data")
         |> post("/api/v1/media", %{
           "file" => image,
-          "description_map" => %{"a" => "mew", "b" => "lol"}
+          "description_map" => %{"a" => "mew", "b" => "lol"},
+          "language" => "a"
         })
         |> json_response_and_validate_schema(:ok)
 
@@ -119,7 +120,8 @@ defmodule Pleroma.Web.MastodonAPI.MediaControllerTest do
         |> put_req_header("content-type", "multipart/form-data")
         |> post("/api/v2/media", %{
           "file" => image,
-          "description_map" => %{"a" => "mew", "b" => "lol"}
+          "description_map" => %{"a" => "mew", "b" => "lol"},
+          "language" => "a"
         })
         |> json_response_and_validate_schema(202)
 
@@ -261,7 +263,8 @@ defmodule Pleroma.Web.MastodonAPI.MediaControllerTest do
         conn
         |> put_req_header("content-type", "multipart/form-data")
         |> put("/api/v1/media/#{object.id}", %{
-          "description_map" => %{"a" => "test-media", "b" => "xxx"}
+          "description_map" => %{"a" => "test-media", "b" => "xxx"},
+          "language" => "a"
         })
         |> json_response_and_validate_schema(:ok)
 

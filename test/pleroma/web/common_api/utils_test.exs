@@ -740,7 +740,8 @@ defmodule Pleroma.Web.CommonAPI.UtilsTest do
               %{"a" => "bar", "c" => "2"}
             ],
             expires_in: 600
-          }
+          },
+          language: "a"
         })
 
       assert %{"oneOf" => choices} = poll

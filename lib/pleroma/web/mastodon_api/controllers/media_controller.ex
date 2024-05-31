@@ -104,7 +104,7 @@ defmodule Pleroma.Web.MastodonAPI.MediaController do
       ) do
     with %Object{} = object <- Object.get_by_id(id),
          :ok <- Object.authorize_access(object, user),
-         language = Map.get(body_params, :language, object["language"]),
+         language = Map.get(body_params, :language, object.data["language"]),
          {_, true} <-
            {:valid_locale, description_map == nil or MultiLanguage.good_locale_code?(language)},
          {_, {:ok, %{}}} <- {:description_map, MultiLanguage.validate_map(description_map)},

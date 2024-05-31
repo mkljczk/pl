@@ -91,7 +91,7 @@ defmodule Pleroma.Upload do
   end
 
   defp validate_description_limit(%{} = description) do
-    Enum.each(description, fn content ->
+    Enum.all?(description, fn {_, content} ->
       String.length(content) <= Pleroma.Config.get([:instance, :description_limit])
     end)
   end

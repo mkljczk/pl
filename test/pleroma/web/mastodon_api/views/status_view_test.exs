@@ -380,7 +380,6 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
              content_map: %{"en" => "mew mew", "cmn" => "喵喵"},
              spoiler_text: "mew",
              spoiler_text_map: %{"en" => "mew", "cmn" => "喵"},
-             language: "mul",
              pleroma: %{
                content: %{"text/plain" => "mew mew"},
                content_map: %{"text/plain" => %{"en" => "mew mew", "cmn" => "喵喵"}},
@@ -399,7 +398,8 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
           "content" => "mew mew",
           "contentMap" => %{"en" => "mew mew"},
           "summary" => "mew",
-          "summaryMap" => %{"en" => "mew"}
+          "summaryMap" => %{"en" => "mew"},
+          "language" => "en"
         }
       )
 
@@ -686,6 +686,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
         preview_url: "someurl",
         text_url: "someurl",
         description: nil,
+        description_map: %{},
         pleroma: %{mime_type: "image/png"},
         meta: %{original: %{width: 200, height: 100, aspect: 2}},
         blurhash: "UJJ8X[xYW,%Jtq%NNFbXB5j]IVM|9GV=WHRn"
@@ -720,6 +721,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
       expected = %{
         blurhash: nil,
         description: "they have played us for absolute fools.",
+        description_map: %{},
         id: "1638338801",
         pleroma: %{mime_type: "image/png", name: "fool.jpeg"},
         preview_url: "someurl",

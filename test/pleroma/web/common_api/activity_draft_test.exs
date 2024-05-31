@@ -19,7 +19,8 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraftTest do
       {:ok, draft} =
         ActivityDraft.create(user, %{
           status_map: %{"a" => "mew mew", "b" => "lol lol"},
-          spoiler_text_map: %{"a" => "mew", "b" => "lol"}
+          spoiler_text_map: %{"a" => "mew", "b" => "lol"},
+          language: "a"
         })
 
       assert %{
