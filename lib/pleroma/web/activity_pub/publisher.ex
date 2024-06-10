@@ -6,6 +6,7 @@ defmodule Pleroma.Web.ActivityPub.Publisher do
   alias Pleroma.Activity
   alias Pleroma.Config
   alias Pleroma.Delivery
+  alias Pleroma.Group
   alias Pleroma.HTTP
   alias Pleroma.Instances
   alias Pleroma.Object
@@ -181,6 +182,14 @@ defmodule Pleroma.Web.ActivityPub.Publisher do
         []
       end
 
+    members =
+      with %User{group: %Group{} = group} <- Repo.preload(actor, :group),
+           true <- group.members_collection in activity.recipients do
+        Group.get_external_members(group)
+      else
+        _ -> []
+      end
+
     fetchers =
       with %Activity{data: %{"type" => "Delete"}} <- activity,
            %Object{id: object_id} <- Object.normalize(activity, fetch: false),
@@ -193,7 +202,7 @@ defmodule Pleroma.Web.ActivityPub.Publisher do
       end
 
     mentioned = remote_users(actor, activity)
-    non_mentioned = (followers ++ fetchers) -- mentioned
+    non_mentioned = (followers ++ fetchers ++ members) -- mentioned
 
     [mentioned, non_mentioned]
   end

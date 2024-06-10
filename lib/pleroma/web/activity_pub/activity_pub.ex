@@ -10,6 +10,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   alias Pleroma.Conversation
   alias Pleroma.Conversation.Participation
   alias Pleroma.Filter
+  alias Pleroma.Group
   alias Pleroma.Hashtag
   alias Pleroma.Maps
   alias Pleroma.Notification
@@ -319,7 +320,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
          _ <- notify_and_stream(activity),
          :ok <- maybe_schedule_poll_notifications(activity),
          :ok <- maybe_handle_group_posts(activity),
-         :ok <- maybe_federate(activity) do
+         :ok <- maybe_federate(activity),
+         :ok <- maybe_group_announce(activity) do
       {:ok, activity}
     else
       {:quick_insert, true, activity} ->
@@ -336,6 +338,14 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   defp maybe_schedule_poll_notifications(activity) do
     PollWorker.schedule_poll_end(activity)
     :ok
+  end
+
+  defp maybe_group_announce(activity) do
+    case Group.Announcer.maybe_announce(activity) do
+      {:ok, _} -> :ok
+      {:noop, _} -> :ok
+      error -> {:error, error}
+    end
   end
 
   @spec listen(map()) :: {:ok, Activity.t()} | {:error, any()}
@@ -1627,6 +1637,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
       pinned_objects: pinned_objects,
       nickname: nickname
     }
+    |> Map.put(:group, object_to_group_data(data))
   end
 
   defp generate_nickname(%{"preferredUsername" => username} = data) when is_binary(username) do
@@ -1644,6 +1655,32 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   # nickname can be nil because of virtual actors
   defp generate_nickname(_), do: nil
+
+  defp object_to_group_data(%{"type" => "Group"} = data) do
+    # TODO: Ingest more fields such as owner, etc.
+    privacy =
+      case data do
+        %{"private" => true} -> "members_only"
+        _ -> "public"
+      end
+
+    accepts_joins =
+      case data do
+        %{"capabilities" => %{"acceptsJoins" => true}} -> true
+        _ -> false
+      end
+
+    %{
+      ap_id: data["id"],
+      members_collection: data["members"],
+      name: data["name"],
+      description: data["summary"] || "",
+      privacy: privacy,
+      accepts_joins: accepts_joins
+    }
+  end
+
+  defp object_to_group_data(_object), do: nil
 
   def fetch_follow_information_for_user(user) do
     with {:ok, following_data} <-

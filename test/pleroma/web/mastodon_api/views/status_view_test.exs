@@ -343,7 +343,8 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
         parent_visible: false,
         pinned_at: nil,
         quotes_count: 0,
-        bookmark_folder: nil
+        bookmark_folder: nil,
+        group: nil
       }
     }
 

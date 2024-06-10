@@ -802,4 +802,11 @@ defmodule Pleroma.Web.MastodonAPI.AccountViewTest do
              DateTime.utc_now() |> DateTime.add(24 * 60 * 60)
            ) in -3..3
   end
+
+  test "renders group data if the account is a Group actor" do
+    group = insert(:group)
+    result = AccountView.render("show.json", %{user: group.user, skip_visibility_check: true})
+
+    assert result.pleroma.group.id == group.id
+  end
 end

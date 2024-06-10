@@ -189,6 +189,15 @@ defmodule Pleroma.Web.StreamerTest do
       end
     end
 
+    test "allows group streams", %{user: user, token: token} do
+      %{id: group_id} = insert(:group)
+
+      expected = "group:#{group_id}"
+      result = Streamer.get_topic("group", user, token, %{"group" => group_id})
+
+      assert {:ok, ^expected} = result
+    end
+
     test "allows hashtag streams (regardless of OAuth token scopes)", %{
       user: user,
       token: read_oauth_token

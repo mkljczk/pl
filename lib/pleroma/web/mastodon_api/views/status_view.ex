@@ -8,6 +8,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
   require Pleroma.Constants
 
   alias Pleroma.Activity
+  alias Pleroma.Group
   alias Pleroma.HTML
   alias Pleroma.Maps
   alias Pleroma.Object
@@ -21,6 +22,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
   alias Pleroma.Web.MastodonAPI.StatusView
   alias Pleroma.Web.MediaProxy
   alias Pleroma.Web.PleromaAPI.EmojiReactionController
+  alias Pleroma.Web.PleromaAPI.GroupView
   alias Pleroma.Web.RichMedia.Card
 
   import Pleroma.Web.ActivityPub.Visibility, only: [get_visibility: 1, visible_for_user?: 2]
@@ -242,6 +244,8 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
 
     user = CommonAPI.get_user(activity.data["actor"])
     user_follower_address = user.follower_address
+
+    group = Group.get_object_group(object)
 
     like_count = object.data["like_count"] || 0
     announcement_count = object.data["announcement_count"] || 0
@@ -465,7 +469,12 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
         parent_visible: visible_for_user?(reply_to, opts[:for]),
         pinned_at: pinned_at,
         quotes_count: object.data["quotesCount"] || 0,
-        bookmark_folder: bookmark_folder
+        bookmark_folder: bookmark_folder,
+        group:
+          GroupView.render("show.json", %{
+            group: group,
+            for: opts[:for]
+          })
       }
     }
   end

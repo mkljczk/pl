@@ -5,6 +5,7 @@
 defmodule Pleroma.Web.ActivityPub.UserView do
   use Pleroma.Web, :view
 
+  alias Pleroma.Group
   alias Pleroma.Keys
   alias Pleroma.Object
   alias Pleroma.Repo
@@ -75,6 +76,17 @@ defmodule Pleroma.Web.ActivityPub.UserView do
     })
   end
 
+  # The actor is really a Group
+  def render("user.json", %{user: %User{group: %Group{} = group}}) do
+    render("group.json", %{group: group})
+  end
+
+  # If the actor_type is "Group", preload the group and try again
+  def render("user.json", %{user: %User{actor_type: "Group", group: group} = user})
+      when group != nil do
+    render("user.json", %{user: Repo.preload(user, :group)})
+  end
+
   def render("user.json", %{user: user}) do
     {:ok, _, public_key} = Keys.keys_from_pem(user.keys)
     public_key = :public_key.pem_entry_encode(:SubjectPublicKeyInfo, public_key)
@@ -132,6 +144,58 @@ defmodule Pleroma.Web.ActivityPub.UserView do
     |> Map.merge(maybe_make_image(&User.avatar_url/2, "icon", user))
     |> Map.merge(maybe_make_image(&User.banner_url/2, "image", user))
     |> Map.merge(Utils.make_json_ld_header())
+  end
+
+  def render("group.json", %{group: %Group{user: %User{} = user} = group}) do
+    {:ok, _, public_key} = Keys.keys_from_pem(user.keys)
+    public_key = :public_key.pem_entry_encode(:SubjectPublicKeyInfo, public_key)
+    public_key = :public_key.pem_encode([public_key])
+    user = User.sanitize_html(user)
+
+    endpoints = render("endpoints.json", %{user: user})
+
+    emoji_tags = Transmogrifier.take_emoji_tags(user)
+
+    fields = Enum.map(user.fields, &Map.put(&1, "type", "PropertyValue"))
+
+    %{
+      "id" => group.ap_id,
+      "type" => "Group",
+      "following" => "#{user.ap_id}/following",
+      "followers" => "#{user.ap_id}/followers",
+      "members" => group.members_collection,
+      "inbox" => "#{user.ap_id}/inbox",
+      "outbox" => "#{user.ap_id}/outbox",
+      "featured" => "#{user.ap_id}/collections/featured",
+      "preferredUsername" => user.nickname,
+      "name" => group.name || user.name,
+      "summary" => group.description || user.bio,
+      "url" => group.ap_id,
+      "manuallyApprovesFollowers" => user.is_locked,
+      "manuallyApprovesMembers" => user.is_locked,
+      "publicKey" => %{
+        "id" => "#{user.ap_id}#main-key",
+        "owner" => user.ap_id,
+        "publicKeyPem" => public_key
+      },
+      "endpoints" => endpoints,
+      "attachment" => fields,
+      "tag" => emoji_tags,
+      "discoverable" => user.is_discoverable,
+      "capabilities" => %{
+        "acceptsJoins" => true,
+        "acceptsChatMessages" => false
+      },
+      "alsoKnownAs" => user.also_known_as,
+      "private" => group.privacy == "members_only"
+    }
+    |> Map.merge(maybe_make_image(&User.avatar_url/2, "icon", user))
+    |> Map.merge(maybe_make_image(&User.banner_url/2, "image", user))
+    |> Map.merge(Utils.make_json_ld_header())
+  end
+
+  def render("group.json", %{group: %Group{} = group}) do
+    render("group.json", %{group: Repo.preload(group, :user)})
   end
 
   def render("following.json", %{user: user, page: page} = opts) do

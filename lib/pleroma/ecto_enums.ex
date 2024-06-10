@@ -11,7 +11,8 @@ defenum(Pleroma.UserRelationship.Type,
   notification_mute: 4,
   inverse_subscription: 5,
   suggestion_dismiss: 6,
-  endorsement: 7
+  endorsement: 7,
+  membership: 8
 )
 
 defenum(Pleroma.FollowingRelationship.State,

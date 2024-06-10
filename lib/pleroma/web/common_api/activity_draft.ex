@@ -5,6 +5,7 @@
 defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   alias Pleroma.Activity
   alias Pleroma.Conversation.Participation
+  alias Pleroma.Group
   alias Pleroma.Object
   alias Pleroma.Web.ActivityPub.Builder
   alias Pleroma.Web.ActivityPub.Visibility
@@ -19,6 +20,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   defstruct valid?: true,
             errors: [],
             user: nil,
+            group: nil,
             params: %{},
             status: nil,
             summary: nil,
@@ -45,6 +47,7 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   def new(user, params) do
     %__MODULE__{user: user}
     |> put_params(params)
+    |> group()
   end
 
   def create(user, params) do
@@ -107,6 +110,15 @@ defmodule Pleroma.Web.CommonAPI.ActivityDraft do
   defp summary(%{params: params} = draft) do
     %__MODULE__{draft | summary: Map.get(params, :spoiler_text, "")}
   end
+
+  defp group(%{params: %{group_id: group_id}} = draft) do
+    case Group.get_by_id(group_id) do
+      %Group{} = group -> %__MODULE__{draft | group: group}
+      _ -> draft
+    end
+  end
+
+  defp group(draft), do: draft
 
   defp full_payload(%{status: status, summary: summary} = draft) do
     full_payload = String.trim(status <> summary)

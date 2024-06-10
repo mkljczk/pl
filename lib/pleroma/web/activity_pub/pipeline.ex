@@ -5,6 +5,7 @@
 defmodule Pleroma.Web.ActivityPub.Pipeline do
   alias Pleroma.Activity
   alias Pleroma.Config
+  alias Pleroma.Group
   alias Pleroma.Object
   alias Pleroma.Repo
   alias Pleroma.Utils
@@ -48,11 +49,19 @@ defmodule Pleroma.Web.ActivityPub.Pipeline do
          {_, {:ok, message, meta}} <- {:mrf, mrf().pipeline_filter(message, meta)},
          {_, {:ok, message, meta}} <- {:persist, activity_pub().persist(message, meta)},
          {_, {:ok, message, meta}} <- {:side_effects, side_effects().handle(message, meta)},
+         {_, {:ok, _}} <- {:group_announce, maybe_group_announce(message, meta)},
          {_, {:ok, _}} <- {:federation, maybe_federate(message, meta)} do
       {:ok, message, meta}
     else
       {:mrf, {:reject, message, _}} -> {:reject, message}
       e -> {:error, e}
+    end
+  end
+
+  defp maybe_group_announce(message, _meta) do
+    case Group.Announcer.maybe_announce(message) do
+      {:ok, _} -> {:ok, :group_announced}
+      _ -> {:ok, :group_not_announced}
     end
   end
 

@@ -151,6 +151,29 @@ defmodule Pleroma.Web.Streamer do
     {:error, :unauthorized}
   end
 
+  # Group streams.
+  def get_topic(
+        "group",
+        %User{id: user_id},
+        %Token{user_id: user_id} = oauth_token,
+        %{"group" => id}
+      ) do
+    cond do
+      OAuthScopesPlug.filter_descendants(["read", "read:groups"], oauth_token.scopes) == [] ->
+        {:error, :unauthorized}
+
+      Pleroma.Group.get_by_id(id) ->
+        {:ok, "group:" <> to_string(id)}
+
+      true ->
+        {:error, :bad_topic}
+    end
+  end
+
+  def get_topic("group", _user, _oauth_token, _params) do
+    {:error, :unauthorized}
+  end
+
   def get_topic(_stream, _user, _oauth_token, _params) do
     {:error, :bad_topic}
   end
@@ -333,6 +356,21 @@ defmodule Pleroma.Web.Streamer do
   end
 
   defp push_to_socket(_topic, %Activity{data: %{"type" => "Delete"}}), do: :noop
+
+  defp push_to_socket("group:" <> _group_id = topic, %Activity{} = item) do
+    anon_render = StreamerView.render("group_update.json", item)
+
+    Registry.dispatch(@registry, topic, fn list ->
+      Enum.each(list, fn {pid, auth?} ->
+        if auth? do
+          # HACK: Why is this needed?
+          send(pid, {:render_group_update_with_user, StreamerView, "group_update.json", item})
+        else
+          send(pid, {:text, anon_render})
+        end
+      end)
+    end)
+  end
 
   defp push_to_socket(topic, %Activity{data: %{"type" => "Update"}} = item) do
     create_activity =

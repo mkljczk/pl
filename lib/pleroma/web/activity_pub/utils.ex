@@ -8,6 +8,7 @@ defmodule Pleroma.Web.ActivityPub.Utils do
   alias Pleroma.Activity
   alias Pleroma.Config
   alias Pleroma.EctoType.ActivityPub.ObjectValidators.ObjectID
+  alias Pleroma.Group
   alias Pleroma.Maps
   alias Pleroma.Notification
   alias Pleroma.Object
@@ -464,6 +465,23 @@ defmodule Pleroma.Web.ActivityPub.Utils do
     {:ok, activity}
   end
 
+  def update_join_state_for_all(
+        %Activity{data: %{"actor" => actor, "object" => object}} = activity,
+        state
+      ) do
+    "Join"
+    |> Activity.Queries.by_type()
+    |> Activity.Queries.by_actor(actor)
+    |> Activity.Queries.by_object_id(object)
+    |> where(fragment("data->>'state' = 'pending'"))
+    |> update(set: [data: fragment("jsonb_set(data, '{state}', ?)", ^state)])
+    |> Repo.update_all([])
+
+    activity = Activity.get_by_id(activity.id)
+
+    {:ok, activity}
+  end
+
   def update_follow_state(
         %Activity{} = activity,
         state
@@ -501,6 +519,17 @@ defmodule Pleroma.Web.ActivityPub.Utils do
     |> where(actor: ^follower_id)
     # this is to use the index
     |> Activity.Queries.by_object_id(followed_id)
+    |> order_by([activity], fragment("? desc nulls last", activity.id))
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  def fetch_latest_join(%User{ap_id: user_id}, %Group{ap_id: group_id}) do
+    "Join"
+    |> Activity.Queries.by_type()
+    |> where(actor: ^user_id)
+    # this is to use the index
+    |> Activity.Queries.by_object_id(group_id)
     |> order_by([activity], fragment("? desc nulls last", activity.id))
     |> limit(1)
     |> Repo.one()
@@ -626,14 +655,15 @@ defmodule Pleroma.Web.ActivityPub.Utils do
         %Activity{data: %{"actor" => actor}},
         object
       ) do
-    unless actor |> User.get_cached_by_ap_id() |> User.invisible?() do
+    with %User{invisible: false, actor_type: actor_type} when actor_type != "Group" <-
+           User.get_cached_by_ap_id(actor) do
       announcements = take_announcements(object)
 
       with announcements <- Enum.uniq([actor | announcements]) do
         update_element_in_object("announcement", announcements, object)
       end
     else
-      {:ok, object}
+      _ -> {:ok, object}
     end
   end
 

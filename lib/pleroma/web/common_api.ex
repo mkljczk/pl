@@ -137,6 +137,24 @@ defmodule Pleroma.Web.CommonAPI do
     end
   end
 
+  def join(user, group) do
+    with {:ok, join_data, _} <- Builder.join(user, group),
+         {:ok, activity, _} <- Pipeline.common_pipeline(join_data, local: true) do
+      if activity.data["state"] == "reject" do
+        {:error, :rejected}
+      else
+        {:ok, user, group, activity}
+      end
+    end
+  end
+
+  def leave(user, group) do
+    with {:ok, leave_data, _} <- Builder.leave(user, group),
+         {:ok, activity, _} <- Pipeline.common_pipeline(leave_data, local: true) do
+      {:ok, user, group, activity}
+    end
+  end
+
   def accept_follow_request(follower, followed) do
     with %Activity{} = follow_activity <- Utils.fetch_latest_follow(follower, followed),
          {:ok, accept_data, _} <- Builder.accept(followed, follow_activity),
@@ -375,6 +393,10 @@ defmodule Pleroma.Web.CommonAPI do
   def public_announce?(object, _) do
     Visibility.public?(object)
   end
+
+  def get_visibility(%{group: %{privacy: privacy}}, in_reply_to, _)
+      when privacy in ~w{public members_only},
+      do: {privacy, get_replied_to_visibility(in_reply_to)}
 
   def get_visibility(_, _, %Participation{}), do: {"direct", "direct"}
 

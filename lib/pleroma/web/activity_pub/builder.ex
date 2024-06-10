@@ -11,6 +11,7 @@ defmodule Pleroma.Web.ActivityPub.Builder do
 
   alias Pleroma.Activity
   alias Pleroma.Emoji
+  alias Pleroma.Group
   alias Pleroma.Object
   alias Pleroma.User
   alias Pleroma.Web.ActivityPub.Relay
@@ -18,6 +19,7 @@ defmodule Pleroma.Web.ActivityPub.Builder do
   alias Pleroma.Web.ActivityPub.Visibility
   alias Pleroma.Web.CommonAPI.ActivityDraft
   alias Pleroma.Web.Endpoint
+  alias Pleroma.Web.Router.Helpers, as: Routes
 
   require Pleroma.Constants
 
@@ -51,6 +53,32 @@ defmodule Pleroma.Web.ActivityPub.Builder do
       "type" => "Follow",
       "object" => followed.ap_id,
       "to" => [followed.ap_id]
+    }
+
+    {:ok, data, []}
+  end
+
+  @spec join(User.t(), Group.t()) :: {:ok, map(), keyword()}
+  def join(user, group) do
+    data = %{
+      "id" => Utils.generate_activity_id(),
+      "actor" => user.ap_id,
+      "type" => "Join",
+      "object" => group.ap_id,
+      "to" => [group.ap_id]
+    }
+
+    {:ok, data, []}
+  end
+
+  @spec join(User.t(), Group.t()) :: {:ok, map(), keyword()}
+  def leave(user, group) do
+    data = %{
+      "id" => Utils.generate_activity_id(),
+      "actor" => user.ap_id,
+      "type" => "Leave",
+      "object" => group.ap_id,
+      "to" => [group.ap_id]
     }
 
     {:ok, data, []}
@@ -179,6 +207,24 @@ defmodule Pleroma.Web.ActivityPub.Builder do
        "object" => object_id,
        "to" => to,
        "type" => "Delete"
+     }, []}
+  end
+
+  def group(owner, name \\ nil, description \\ nil) do
+    id = Ecto.UUID.generate()
+    ap_id = "#{Endpoint.url()}/groups/#{id}"
+
+    {:ok,
+     %{
+       "id" => ap_id,
+       "type" => "Group",
+       "name" => name,
+       "summary" => description,
+       "following" => "#{ap_id}/following",
+       "followers" => "#{ap_id}/followers",
+       "members" => "#{ap_id}/members",
+       # attributedTo? owner? admin?
+       "attributedTo" => owner.ap_id
      }, []}
   end
 
@@ -429,6 +475,6 @@ defmodule Pleroma.Web.ActivityPub.Builder do
   end
 
   defp pinned_url(nickname) when is_binary(nickname) do
-    Pleroma.Web.Router.Helpers.activity_pub_url(Pleroma.Web.Endpoint, :pinned, nickname)
+    Routes.activity_pub_url(Endpoint, :pinned, nickname)
   end
 end

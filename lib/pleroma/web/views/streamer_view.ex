@@ -57,6 +57,20 @@ defmodule Pleroma.Web.StreamerView do
     |> Jason.encode!()
   end
 
+  def render("group_update.json", %Activity{} = activity, %User{} = user) do
+    %{
+      event: "update",
+      payload:
+        Pleroma.Web.PleromaAPI.GroupView.render(
+          "status.json",
+          activity: activity,
+          for: user
+        )
+        |> Jason.encode!()
+    }
+    |> Jason.encode!()
+  end
+
   def render("update.json", %Activity{} = activity, topic) do
     %{
       stream: render("stream.json", %{topic: topic}),
@@ -104,6 +118,19 @@ defmodule Pleroma.Web.StreamerView do
       event: "pleroma:chat_update",
       payload:
         representation
+        |> Jason.encode!()
+    }
+    |> Jason.encode!()
+  end
+
+  def render("group_update.json", %Activity{} = activity) do
+    %{
+      event: "update",
+      payload:
+        Pleroma.Web.PleromaAPI.GroupView.render(
+          "status.json",
+          activity: activity
+        )
         |> Jason.encode!()
     }
     |> Jason.encode!()

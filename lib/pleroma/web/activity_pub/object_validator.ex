@@ -30,6 +30,8 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidator do
   alias Pleroma.Web.ActivityPub.ObjectValidators.EmojiReactValidator
   alias Pleroma.Web.ActivityPub.ObjectValidators.EventValidator
   alias Pleroma.Web.ActivityPub.ObjectValidators.FollowValidator
+  alias Pleroma.Web.ActivityPub.ObjectValidators.GroupValidator
+  alias Pleroma.Web.ActivityPub.ObjectValidators.JoinLeaveValidator
   alias Pleroma.Web.ActivityPub.ObjectValidators.LikeValidator
   alias Pleroma.Web.ActivityPub.ObjectValidators.QuestionValidator
   alias Pleroma.Web.ActivityPub.ObjectValidators.UndoValidator
@@ -37,6 +39,16 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidator do
 
   @impl true
   def validate(object, meta)
+
+  def validate(%{"type" => "Group"} = object, meta) do
+    with {:ok, object} <-
+           object
+           |> GroupValidator.cast_and_validate()
+           |> Ecto.Changeset.apply_action(:insert) do
+      object = stringify_keys(object)
+      {:ok, object, meta}
+    end
+  end
 
   def validate(%{"type" => "Block"} = block_activity, meta) do
     with {:ok, block_activity} <-
@@ -181,7 +193,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidator do
 
   def validate(%{"type" => type} = object, meta)
       when type in ~w[Accept Reject Follow Update Like EmojiReact Announce
-      ChatMessage Answer] do
+      ChatMessage Answer Join Leave] do
     validator =
       case type do
         "Accept" -> AcceptRejectValidator
@@ -193,6 +205,8 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidator do
         "Announce" -> AnnounceValidator
         "ChatMessage" -> ChatMessageValidator
         "Answer" -> AnswerValidator
+        "Join" -> JoinLeaveValidator
+        "Leave" -> JoinLeaveValidator
       end
 
     with {:ok, object} <-

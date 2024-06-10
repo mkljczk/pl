@@ -639,6 +639,18 @@ defmodule Pleroma.Web.Router do
     end
   end
 
+  scope "/api/v1/pleroma", Pleroma.Web.PleromaAPI do
+    pipe_through(:authenticated_api)
+    post("/groups", GroupController, :create)
+    get("/groups/relationships", GroupController, :relationships)
+    get("/groups/:id", GroupController, :show)
+    get("/groups/:id/statuses", GroupController, :statuses)
+    get("/groups/:id/members", GroupController, :members)
+    post("/groups/:id/statuses", GroupController, :post)
+    post("/groups/:id/join", GroupController, :join)
+    post("/groups/:id/leave", GroupController, :leave)
+  end
+
   scope "/api/v1", Pleroma.Web.MastodonAPI do
     pipe_through(:authenticated_api)
 
@@ -866,6 +878,12 @@ defmodule Pleroma.Web.Router do
   end
 
   scope "/", Pleroma.Web do
+    pipe_through([:accepts_html_xml_json, :http_signature])
+    get("/groups/:nickname", Feed.UserController, :feed_redirect, as: :group_feed)
+  end
+
+  scope "/", Pleroma.Web do
+    # Note: html format is supported only if static FE is enabled
     pipe_through([:accepts_html_xml])
 
     get("/users/:nickname/feed", Feed.UserController, :feed, as: :user_feed)
@@ -909,9 +927,12 @@ defmodule Pleroma.Web.Router do
 
     get("/api/ap/whoami", ActivityPubController, :whoami)
     get("/users/:nickname/inbox", ActivityPubController, :read_inbox)
+    get("/groups/:nickname/inbox", ActivityPubController, :read_inbox)
 
     get("/users/:nickname/outbox", ActivityPubController, :outbox)
     post("/users/:nickname/outbox", ActivityPubController, :update_outbox)
+    get("/groups/:nickname/outbox", ActivityPubController, :outbox)
+    post("/groups/:nickname/outbox", ActivityPubController, :update_outbox)
     post("/api/ap/upload_media", ActivityPubController, :upload_media)
 
     # The following two are S2S as well, see `ActivityPub.fetch_follow_information_for_user/1`:
@@ -924,6 +945,7 @@ defmodule Pleroma.Web.Router do
     pipe_through(:activitypub)
     post("/inbox", ActivityPubController, :inbox)
     post("/users/:nickname/inbox", ActivityPubController, :inbox)
+    post("/groups/:nickname/inbox", ActivityPubController, :inbox)
   end
 
   scope "/relay", Pleroma.Web.ActivityPub do

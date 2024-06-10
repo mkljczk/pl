@@ -19,6 +19,7 @@ defmodule Pleroma.User do
   alias Pleroma.Emoji
   alias Pleroma.FollowingRelationship
   alias Pleroma.Formatter
+  alias Pleroma.Group
   alias Pleroma.HTML
   alias Pleroma.Keys
   alias Pleroma.MFA
@@ -60,6 +61,10 @@ defmodule Pleroma.User do
   # AP ID user relationships (blocks, mutes etc.)
   # Format: [rel_type: [outgoing_rel: :outgoing_rel_target, incoming_rel: :incoming_rel_source]]
   @user_relationships_config [
+    membership: [
+      group_memberships: :group_members,
+      user_memberships: :joined_groups
+    ],
     block: [
       blocker_blocks: :blocked_users,
       blockee_blocks: :blocker_users
@@ -216,6 +221,9 @@ defmodule Pleroma.User do
       MFA.Settings,
       on_replace: :delete
     )
+
+    # Some `users` are actually groups. In this case, they can have a corresponding `Group`
+    has_one(:group, Group, on_replace: :update)
 
     timestamps()
   end
@@ -458,6 +466,13 @@ defmodule Pleroma.User do
 
   defp fix_follower_address(params), do: params
 
+  def group_changeset(struct \\ %User{actor_type: "Group"}, params) do
+    struct
+    |> cast(params, [:ap_id, :nickname, :name, :follower_address, :following_address, :local])
+    |> validate_required([:ap_id, :nickname, :follower_address, :following_address, :local])
+    |> validate_format(:nickname, local_nickname_regex())
+  end
+
   def remote_user_changeset(struct \\ %User{local: false}, params) do
     bio_limit = Config.get([:instance, :user_bio_length], 5000)
     name_limit = Config.get([:instance, :user_name_length], 100)
@@ -478,6 +493,7 @@ defmodule Pleroma.User do
       |> fix_follower_address()
 
     struct
+    |> Repo.preload(:group)
     |> cast(
       params,
       [
@@ -514,6 +530,7 @@ defmodule Pleroma.User do
       ]
     )
     |> cast(params, [:name], empty_values: [])
+    |> maybe_put_group_assoc(params)
     |> validate_required([:ap_id])
     |> validate_required([:name], trim: false)
     |> unique_constraint(:nickname)
@@ -522,6 +539,14 @@ defmodule Pleroma.User do
     |> validate_length(:name, max: name_limit)
     |> validate_fields(true)
     |> validate_non_local()
+  end
+
+  defp maybe_put_group_assoc(cng, params) do
+    if params[:group] do
+      put_assoc(cng, :group, params[:group])
+    else
+      cng
+    end
   end
 
   defp validate_non_local(cng) do
@@ -2809,4 +2834,9 @@ defmodule Pleroma.User do
       birthday_month: month
     })
   end
+
+  def create_group(%User{actor_type: "Group"}) do
+  end
+
+  def create_group(user), do: user
 end
