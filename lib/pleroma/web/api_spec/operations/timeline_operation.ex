@@ -148,6 +148,33 @@ defmodule Pleroma.Web.ApiSpec.TimelineOperation do
     }
   end
 
+  def group_operation do
+    %Operation{
+      tags: ["Timelines"],
+      summary: "Group timeline",
+      description: "View statuses in the given group timeline",
+      security: [%{"oAuth" => ["read:groups"]}],
+      parameters: [
+        Operation.parameter(
+          :group_id,
+          :path,
+          %Schema{type: :string},
+          "Local ID of the group in the database",
+          required: true
+        ),
+        with_muted_param(),
+        local_param(),
+        remote_param(),
+        only_media_param(),
+        exclude_visibilities_param() | pagination_params()
+      ],
+      operationId: "TimelineController.group",
+      responses: %{
+        200 => Operation.response("Array of Status", "application/json", array_of_statuses())
+      }
+    }
+  end
+
   defp array_of_statuses do
     %Schema{
       title: "ArrayOfStatuses",

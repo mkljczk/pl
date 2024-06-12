@@ -9,6 +9,7 @@ defmodule Pleroma.Web.MastodonAPI.TimelineController do
     only: [add_link_headers: 2, add_link_headers: 3]
 
   alias Pleroma.Config
+  alias Pleroma.Group
   alias Pleroma.Pagination
   alias Pleroma.User
   alias Pleroma.Web.ActivityPub.ActivityPub
@@ -29,6 +30,7 @@ defmodule Pleroma.Web.MastodonAPI.TimelineController do
 
   plug(OAuthScopesPlug, %{scopes: ["read:statuses"]} when action in [:home, :direct])
   plug(OAuthScopesPlug, %{scopes: ["read:lists"]} when action == :list)
+  plug(OAuthScopesPlug, %{scopes: ["read:groups"]} when action == :group)
 
   plug(
     OAuthScopesPlug,
@@ -194,6 +196,24 @@ defmodule Pleroma.Web.MastodonAPI.TimelineController do
         |> Enum.filter(fn x -> x in user_following end)
         |> ActivityPub.fetch_activities_bounded(following, params)
         |> Enum.reverse()
+
+      conn
+      |> add_link_headers(activities)
+      |> render("index.json",
+        activities: activities,
+        for: user,
+        as: :activity,
+        with_muted: Map.get(params, :with_muted, false)
+      )
+    else
+      _e -> render_error(conn, :forbidden, "Error.")
+    end
+  end
+
+  # GET /api/v1/timelines/group/:group_id
+  def group(%{assigns: %{user: user}} = conn, %{group_id: id} = params) do
+    with %Group{} = group <- Group.get_by_id(id) do
+      activities = Group.Timeline.fetch_group_activities(group)
 
       conn
       |> add_link_headers(activities)

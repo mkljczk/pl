@@ -20,15 +20,25 @@ defmodule Pleroma.Web.PleromaAPI.GroupController do
 
   plug(
     OAuthScopesPlug,
-    %{scopes: ["write:groups"]} when action in [:create, :join, :leave, :post]
+    %{scopes: ["write:groups"]} when action in [:create, :join, :leave]
   )
 
-  plug(OAuthScopesPlug, %{scopes: ["read:groups"]} when action in [:show, :statuses, :members])
-  plug(OAuthScopesPlug, %{scopes: ["read:memberships"]} when action in [:relationships])
+  plug(
+    OAuthScopesPlug,
+    %{scopes: ["read:groups"]} when action in [:index, :show, :memberships, :relationships]
+  )
 
   plug(Pleroma.Web.ApiSpec.CastAndValidate)
 
   defdelegate open_api_operation(action), to: Pleroma.Web.ApiSpec.GroupOperation
+
+  def index(%{assigns: %{user: %User{} = user}} = conn, _) do
+    %{joined_groups: groups} =
+      user
+      |> Repo.preload(:joined_groups)
+
+    render(conn, "index.json", %{groups: groups})
+  end
 
   def create(%{assigns: %{user: %User{} = user}, body_params: params} = conn, _) do
     params = %{
@@ -70,36 +80,23 @@ defmodule Pleroma.Web.PleromaAPI.GroupController do
     render(conn, "relationships.json", user: user, groups: groups)
   end
 
-  def statuses(%{assigns: %{user: reading_user}} = conn, %{id: id}) do
-    with %Group{} = group <- Group.get_by_id(id) do
-      activities = Group.Timeline.fetch_group_activities(group)
-
-      conn
-      |> add_link_headers(activities)
-      |> render("statuses.json",
-        activities: activities,
-        for: reading_user,
-        as: :activity
-      )
-    end
-  end
-
   defp get_members_paginated(%Group{} = group, params) do
     group
-    |> Group.get_members_query()
+    |> Group.get_members_query(params[:role])
     |> Pagination.fetch_paginated(params)
   end
 
-  def members(%{assigns: %{user: %User{} = user}} = conn, %{id: id} = params) do
+  def memberships(%{assigns: %{user: %User{} = user}} = conn, %{id: id} = params) do
     with %Group{} = group <- Group.get_by_id(id) do
       params = normalize_params(params)
       members = get_members_paginated(group, params)
 
       conn
       |> add_link_headers(members)
-      |> render("accounts.json",
+      |> render("memberships.json",
         for: user,
         users: members,
+        group: group,
         as: :user,
         embed_relationships: embed_relationships?(params)
       )
@@ -107,49 +104,6 @@ defmodule Pleroma.Web.PleromaAPI.GroupController do
       nil -> FallbackController.call(conn, {:error, :not_found}) |> halt()
     end
   end
-
-  def post(%{assigns: %{user: user}, body_params: %{status: _} = params} = conn, %{id: id}) do
-    params =
-      params
-      |> Map.put(:in_reply_to_status_id, params[:in_reply_to_id])
-      |> Map.put(:group_id, id)
-      |> put_application(conn)
-
-    with {:ok, activity} <- CommonAPI.post(user, params) do
-      try_render(conn, "status.json",
-        activity: activity,
-        for: user,
-        as: :activity,
-        with_direct_conversation_id: true
-      )
-    else
-      {:error, {:reject, message}} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: message})
-
-      {:error, message} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: message})
-    end
-  end
-
-  def post(%{assigns: %{user: _user}, body_params: %{media_ids: _} = body_params} = conn, params) do
-    body_params = Map.put(body_params, :status, "")
-    post(%Plug.Conn{conn | body_params: body_params}, params)
-  end
-
-  defp put_application(params, %{assigns: %{token: %Token{user: %User{} = user} = token}} = _conn) do
-    if user.disclose_client do
-      %{client_name: client_name, website: website} = Repo.preload(token, :app).app
-      Map.put(params, :generator, %{type: "Application", name: client_name, url: website})
-    else
-      Map.put(params, :generator, nil)
-    end
-  end
-
-  defp put_application(params, _), do: Map.put(params, :generator, nil)
 
   defp normalize_params(params) do
     params

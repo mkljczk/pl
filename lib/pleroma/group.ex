@@ -148,7 +148,14 @@ defmodule Pleroma.Group do
     Repo.preload(group, :members).members
   end
 
-  def get_members_query(%Group{} = group) do
+  def get_members_query(group, role \\ nil)
+
+  # def get_members_query(%Group{} = group, role) when is_binary(role) do
+  #   get_members_query(group)
+  #   |>
+  # end
+
+  def get_members_query(%Group{} = group, _role) do
     Ecto.assoc(group, :members)
   end
 

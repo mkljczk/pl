@@ -639,14 +639,26 @@ defmodule Pleroma.Web.Router do
     end
   end
 
-  scope "/api/v1/pleroma", Pleroma.Web.PleromaAPI do
+  scope "/api/v1", Pleroma.Web.PleromaAPI do
     pipe_through(:authenticated_api)
+
+    get("/groups", GroupController, :index)
     post("/groups", GroupController, :create)
     get("/groups/relationships", GroupController, :relationships)
     get("/groups/:id", GroupController, :show)
-    get("/groups/:id/statuses", GroupController, :statuses)
-    get("/groups/:id/members", GroupController, :members)
-    post("/groups/:id/statuses", GroupController, :post)
+    get("/groups/:id/memberships", GroupController, :memberships)
+    post("/groups/:id/join", GroupController, :join)
+    post("/groups/:id/leave", GroupController, :leave)
+  end
+
+  scope "/api/v1/pleroma", Pleroma.Web.PleromaAPI do
+    pipe_through(:authenticated_api)
+
+    get("/groups", GroupController, :index)
+    post("/groups", GroupController, :create)
+    get("/groups/relationships", GroupController, :relationships)
+    get("/groups/:id", GroupController, :show)
+    get("/groups/:id/memberships", GroupController, :memberships)
     post("/groups/:id/join", GroupController, :join)
     post("/groups/:id/leave", GroupController, :leave)
   end
@@ -761,6 +773,7 @@ defmodule Pleroma.Web.Router do
     get("/timelines/home", TimelineController, :home)
     get("/timelines/direct", TimelineController, :direct)
     get("/timelines/list/:list_id", TimelineController, :list)
+    get("/timelines/group/:group_id", TimelineController, :group)
 
     get("/announcements", AnnouncementController, :index)
     post("/announcements/:id/dismiss", AnnouncementController, :mark_read)

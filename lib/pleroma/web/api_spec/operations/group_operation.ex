@@ -1,5 +1,5 @@
 # Pleroma: A lightweight social networking server
-# Copyright © 2017-2021 Pleroma Authors <https://pleroma.social/>
+# Copyright © 2017-2024 Pleroma Authors <https://pleroma.social/>
 # SPDX-License-Identifier: AGPL-3.0-only
 
 defmodule Pleroma.Web.ApiSpec.GroupOperation do
@@ -10,7 +10,7 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
   alias Pleroma.Web.ApiSpec.Schemas.BooleanLike
   alias Pleroma.Web.ApiSpec.Schemas.FlakeID
   alias Pleroma.Web.ApiSpec.Schemas.Group
-  alias Pleroma.Web.ApiSpec.Schemas.GroupRelationship
+  alias Pleroma.Web.ApiSpec.Schemas.GroupMembership
   alias Pleroma.Web.ApiSpec.Schemas.PrivacyScope
   alias Pleroma.Web.ApiSpec.Schemas.ScheduledStatus
   alias Pleroma.Web.ApiSpec.Schemas.Status
@@ -24,10 +24,28 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
     apply(__MODULE__, operation, [])
   end
 
+  def index_operation do
+    %Operation{
+      tags: ["Retrieve group information"],
+      summary: "Group",
+      operationId: "GroupController.index",
+      description: "View groups the user is a member of.",
+      responses: %{
+        200 =>
+          Operation.response("Array of groups", "application/json", %Schema{
+            title: "ArrayOfGroupMemberships",
+            description: "Response schema for group relationships",
+            type: :array,
+            items: Group
+          })
+      }
+    }
+  end
+
   @spec create_operation() :: Operation.t()
   def create_operation do
     %Operation{
-      tags: ["Group"],
+      tags: ["Group actions"],
       summary: "Create a group",
       description: "Creates a group account with the specified privacy setting.",
       operationId: "GroupController.create",
@@ -61,11 +79,11 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
       tags: ["Group actions"],
       summary: "Join",
       operationId: "GroupController.join",
-      security: [%{"oAuth" => ["memberships", "write:memberships"]}],
+      security: [%{"oAuth" => ["groups", "write:groups"]}],
       description: "Join the given group",
       parameters: [id_param()],
       responses: %{
-        200 => Operation.response("Relationship", "application/json", GroupRelationship),
+        200 => Operation.response("Relationship", "application/json", GroupMembership),
         400 => Operation.response("Error", "application/json", ApiError),
         404 => Operation.response("Error", "application/json", ApiError)
       }
@@ -77,11 +95,11 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
       tags: ["Group actions"],
       summary: "Leave",
       operationId: "GroupController.leave",
-      security: [%{"oAuth" => ["memberships", "write:memberships"]}],
+      security: [%{"oAuth" => ["groups", "write:groups"]}],
       description: "Leave the given group",
       parameters: [id_param()],
       responses: %{
-        200 => Operation.response("Relationship", "application/json", GroupRelationship),
+        200 => Operation.response("Relationship", "application/json", GroupMembership),
         400 => Operation.response("Error", "application/json", ApiError),
         404 => Operation.response("Error", "application/json", ApiError)
       }
@@ -94,7 +112,7 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
       summary: "Relationship between the logged in user and the given groups",
       operationId: "GroupController.relationships",
       description: "Find out whether the logged in user is a member, owner, etc. of the groups",
-      security: [%{"oAuth" => ["read:memberships"]}],
+      security: [%{"oAuth" => ["read:groups"]}],
       parameters: [
         Operation.parameter(
           :id,
@@ -112,59 +130,28 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
     }
   end
 
-  def statuses_operation do
-    %Operation{
-      summary: "Group",
-      tags: ["Retrieve group information"],
-      operationId: "GroupController.statuses",
-      description:
-        "Statuses posted to the given group. Public (for public statuses only), or user token + `read:statuses` (for private statuses the user is authorized to see)",
-      parameters: [id_param()] ++ pagination_params(),
-      responses: %{
-        200 => Operation.response("Statuses", "application/json", array_of_statuses()),
-        401 => Operation.response("Error", "application/json", ApiError),
-        404 => Operation.response("Error", "application/json", ApiError)
-      }
-    }
-  end
-
-  def members_operation do
+  def memberships_operation do
     %Operation{
       tags: ["Retrieve group information"],
       summary: "Members",
-      operationId: "GroupController.members",
+      operationId: "GroupController.memberships",
       security: [%{"oAuth" => ["read:accounts"]}],
       description:
         "Accounts which are members of the given group, if network is not hidden by the account owner.",
       parameters: [
         id_param(),
         Operation.parameter(:id, :query, :string, "ID of the resource owner"),
+        Operation.parameter(
+          :role,
+          :query,
+          %Schema{type: :string, enum: ["owner", "admin", "user"]},
+          "Group membership role"
+        ),
         with_relationships_param() | pagination_params()
       ],
       responses: %{
         200 =>
           Operation.response("Accounts", "application/json", AccountOperation.array_of_accounts())
-      }
-    }
-  end
-
-  def post_operation do
-    %Operation{
-      tags: ["Group actions"],
-      summary: "Publish new status to the group",
-      security: [%{"oAuth" => ["write:statuses"]}],
-      description: "Post a new status to the group",
-      operationId: "GroupController.post",
-      parameters: [id_param()],
-      requestBody: request_body("Parameters", status_create_request(), required: true),
-      responses: %{
-        200 =>
-          Operation.response(
-            "Status. When `scheduled_at` is present, ScheduledStatus is returned instead",
-            "application/json",
-            %Schema{anyOf: [Status, ScheduledStatus]}
-          ),
-        422 => Operation.response("Bad Request / MRF Rejection", "application/json", ApiError)
       }
     }
   end
@@ -198,7 +185,19 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
           nullable: true,
           description: "Whether manual approval of join requests is required."
         },
-        privacy: PrivacyScope
+        privacy: PrivacyScope,
+        avatar: %Schema{
+          type: :string,
+          nullable: true,
+          description: "Avatar image encoded using multipart/form-data",
+          format: :binary
+        },
+        header: %Schema{
+          type: :string,
+          nullable: true,
+          description: "Header image encoded using multipart/form-data",
+          format: :binary
+        }
       },
       example: %{
         "slug" => "dogelovers",
@@ -310,10 +309,10 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
 
   defp array_of_relationships do
     %Schema{
-      title: "ArrayOfGroupRelationships",
+      title: "ArrayOfGroupMemberships",
       description: "Response schema for group relationships",
       type: :array,
-      items: GroupRelationship,
+      items: GroupMembership,
       example: [
         %{
           "id" => "A8fI1zwFiqcRYXgBIu",

@@ -978,10 +978,11 @@ defmodule Pleroma.Web.ActivityPub.Utils do
 
     mentioned_local_groups =
       User.get_all_by_ap_id(mentions)
+      |> Repo.preload(:group)
       |> Enum.filter(fn user ->
         user.actor_type == "Group" and
           user.local and
-          not User.blocks?(user, poster)
+          not User.blocks?(user, poster) and user.group == nil
       end)
 
     mentioned_local_groups

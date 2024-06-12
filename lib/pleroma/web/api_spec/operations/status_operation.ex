@@ -585,7 +585,7 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
           nullable: true,
           anyOf: [
             VisibilityScope,
-            %Schema{type: :string, description: "`list:LIST_ID`", example: "LIST:123"}
+            %Schema{type: :string, description: "`list:LIST_ID`", example: "list:123"}
           ],
           description:
             "Visibility of the posted status. Besides standard MastoAPI values (`direct`, `private`, `unlisted` or `public`) it can be used to address a List by setting it to `list:LIST_ID`"
@@ -606,6 +606,11 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
           nullable: true,
           allOf: [FlakeID],
           description: "ID of the status being quoted, if any"
+        },
+        group_id: %Schema{
+          nullable: true,
+          allOf: [FlakeID],
+          description: "ID of the group to post to. Required if visibility set to `group`."
         }
       },
       example: %{
