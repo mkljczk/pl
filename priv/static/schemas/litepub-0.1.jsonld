@@ -19,12 +19,9 @@
             "ostatus": "http://ostatus.org#",
             "schema": "http://schema.org#",
             "toot": "http://joinmastodon.org/ns#",
-<<<<<<< HEAD
             "fedibird": "http://fedibird.com/ns#",
-=======
             "sm": "http://smithereen.software/ns#",
             "soapbox": "http://soapbox.pub/ns#",
->>>>>>> alex/groups
             "value": "schema:value",
             "sensitive": "as:sensitive",
             "litepub": "http://litepub.social/ns#",
@@ -47,14 +44,11 @@
                 "@id": "as:alsoKnownAs",
                 "@type": "@id"
             },
-<<<<<<< HEAD
             "vcard": "http://www.w3.org/2006/vcard/ns#",
             "formerRepresentations": "litepub:formerRepresentations",
-            "sm": "http://smithereen.software/ns#",
-            "nonAnonymous": "sm:nonAnonymous"
-=======
-            "members": "sm:members"
->>>>>>> alex/groups
+            "nonAnonymous": "sm:nonAnonymous",
+            "members": "sm:members",
+            "accessType": "sm:accessType"
         }
     ]
 }

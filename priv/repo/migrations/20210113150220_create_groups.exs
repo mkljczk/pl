@@ -9,6 +9,7 @@ defmodule Pleroma.Repo.Migrations.CreateGroups do
       add(:name, :text)
       add(:description, :text)
       add(:members_collection, :text)
+      add(:wall_address, :text)
 
       timestamps()
     end

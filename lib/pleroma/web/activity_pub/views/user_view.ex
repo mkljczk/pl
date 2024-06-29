@@ -187,7 +187,15 @@ defmodule Pleroma.Web.ActivityPub.UserView do
         "acceptsChatMessages" => false
       },
       "alsoKnownAs" => user.also_known_as,
-      "private" => group.privacy == "members_only"
+      "accessType" => if(user.is_locked, do: "open", else: "closed"),
+      "wall" => "#{user.ap_id}/wall",
+      attributedTo: [
+        %{
+          "id" => group.owner.ap_id,
+          "type" => group.owner.actor_type,
+          "title" => ""
+        }
+      ]
     }
     |> Map.merge(maybe_make_image(&User.avatar_url/2, "icon", user))
     |> Map.merge(maybe_make_image(&User.banner_url/2, "image", user))
@@ -195,7 +203,7 @@ defmodule Pleroma.Web.ActivityPub.UserView do
   end
 
   def render("group.json", %{group: %Group{} = group}) do
-    render("group.json", %{group: Repo.preload(group, :user)})
+    render("group.json", %{group: Repo.preload(group, [:user, :owner])})
   end
 
   def render("following.json", %{user: user, page: page} = opts) do

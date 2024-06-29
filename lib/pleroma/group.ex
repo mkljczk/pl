@@ -41,6 +41,7 @@ defmodule Pleroma.Group do
     field(:description, :string)
     field(:privacy, :string, default: "public")
     field(:members_collection, :string)
+    field(:wall_address, :string)
     field(:accepts_joins, :boolean, default: false)
 
     timestamps()
@@ -49,7 +50,12 @@ defmodule Pleroma.Group do
   @spec create(map()) :: {:ok, t()} | {:error, Ecto.Changeset.t()}
   def create(params) do
     with {:ok, %User{id: user_id, ap_id: ap_id}} <- generate_user(params) do
-      %__MODULE__{ap_id: ap_id, user_id: user_id, members_collection: "#{ap_id}/members"}
+      %__MODULE__{
+        ap_id: ap_id,
+        user_id: user_id,
+        members_collection: "#{ap_id}/members",
+        wall_address: "#{ap_id}/wall"
+      }
       |> changeset(params)
       |> Repo.insert()
     end

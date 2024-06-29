@@ -12,7 +12,6 @@ defmodule Pleroma.Web.ApiSpec.GroupOperation do
   alias Pleroma.Web.ApiSpec.Schemas.Group
   alias Pleroma.Web.ApiSpec.Schemas.GroupMembership
   alias Pleroma.Web.ApiSpec.Schemas.PrivacyScope
-  alias Pleroma.Web.ApiSpec.Schemas.ScheduledStatus
   alias Pleroma.Web.ApiSpec.Schemas.Status
   alias Pleroma.Web.ApiSpec.StatusOperation
 

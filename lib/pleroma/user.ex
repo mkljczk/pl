@@ -491,6 +491,7 @@ defmodule Pleroma.User do
       |> truncate_if_exists(:bio, bio_limit)
       |> truncate_fields_param()
       |> fix_follower_address()
+      |> put_private_key()
 
     struct
     |> Repo.preload(:group)
