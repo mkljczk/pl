@@ -249,7 +249,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier.NoteHandlingTest do
       assert object.data["content"] == "Hi"
     end
 
-    test "it works for incoming notices with a nil contentMap (firefish)" do
+    test "it works for incoming notices with a nil content (firefish)" do
       data =
         File.read!("test/fixtures/mastodon-post-activity-contentmap.json")
         |> Jason.decode!()

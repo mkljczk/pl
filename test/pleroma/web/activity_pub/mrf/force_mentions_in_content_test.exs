@@ -87,6 +87,57 @@ defmodule Pleroma.Web.ActivityPub.MRF.ForceMentionsInContentTest do
              "<span class=\"recipients-inline\"><span class=\"h-card\"><a class=\"u-url mention\" data-user=\"#{luigi.id}\" href=\"#{luigi.ap_id}\" rel=\"ugc\">@<span>luigi</span></a></span> <span class=\"h-card\"><a class=\"u-url mention\" data-user=\"#{mario.id}\" href=\"#{mario.ap_id}\" rel=\"ugc\">@<span>mario</span></a></span> </span>WHA-HA!"
   end
 
+  test "supports mulitlang" do
+    [mario, luigi, wario] = [
+      insert(:user, nickname: "mario"),
+      insert(:user, nickname: "luigi"),
+      insert(:user, nickname: "wario")
+    ]
+
+    {:ok, post1} = CommonAPI.post(mario, %{status: "Letsa go!"})
+
+    {:ok, post2} =
+      CommonAPI.post(luigi, %{status: "Oh yaah", in_reply_to_id: post1.id, to: [mario.ap_id]})
+
+    activity = %{
+      "type" => "Create",
+      "actor" => wario.ap_id,
+      "object" => %{
+        "type" => "Note",
+        "actor" => wario.ap_id,
+        "content" => "WHA-HA!",
+        "contentMap" => %{
+          "a" => "mew mew",
+          "b" => "lol lol"
+        },
+        "to" => [
+          mario.ap_id,
+          luigi.ap_id,
+          Constants.as_public()
+        ],
+        "inReplyTo" => Object.normalize(post2).data["id"]
+      }
+    }
+
+    {:ok,
+     %{
+       "object" => %{
+         "content" => content,
+         "contentMap" => %{
+           "a" => content_a,
+           "b" => content_b
+         }
+       }
+     }} = ForceMentionsInContent.filter(activity)
+
+    mentions_part =
+      "<span class=\"recipients-inline\"><span class=\"h-card\"><a class=\"u-url mention\" data-user=\"#{luigi.id}\" href=\"#{luigi.ap_id}\" rel=\"ugc\">@<span>luigi</span></a></span> <span class=\"h-card\"><a class=\"u-url mention\" data-user=\"#{mario.id}\" href=\"#{mario.ap_id}\" rel=\"ugc\">@<span>mario</span></a></span> </span>"
+
+    assert content_a == mentions_part <> "mew mew"
+    assert content_b == mentions_part <> "lol lol"
+    assert content == mentions_part <> "WHA-HA!"
+  end
+
   test "don't mention self" do
     mario = insert(:user, nickname: "mario")
 

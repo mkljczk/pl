@@ -6,6 +6,7 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
   alias OpenApiSpex.Operation
   alias OpenApiSpex.Schema
   alias Pleroma.Web.ApiSpec.AccountOperation
+  alias Pleroma.Web.ApiSpec.Helpers
   alias Pleroma.Web.ApiSpec.Schemas.Account
   alias Pleroma.Web.ApiSpec.Schemas.ApiError
   alias Pleroma.Web.ApiSpec.Schemas.Attachment
@@ -566,6 +567,12 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
           description:
             "Text content of the status. If `media_ids` is provided, this becomes optional. Attaching a `poll` is optional while `status` is provided."
         },
+        status_map:
+          Helpers.multilang_map_of(%Schema{
+            type: :string,
+            description:
+              "Text content of the status. If `media_ids` is provided, this becomes optional. Attaching a `poll` is optional while `status` is provided."
+          }),
         media_ids: %Schema{
           nullable: true,
           type: :array,
@@ -589,6 +596,12 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
           description:
             "Text to be shown as a warning or subject before the actual content. Statuses are generally collapsed behind this field."
         },
+        spoiler_text_map:
+          Helpers.multilang_map_of(%Schema{
+            type: :string,
+            description:
+              "Text to be shown as a warning or subject before the actual content. Statuses are generally collapsed behind this field."
+          }),
         scheduled_at: %Schema{
           type: :string,
           format: :"date-time",
@@ -597,9 +610,20 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
             "ISO 8601 Datetime at which to schedule a status. Providing this parameter will cause ScheduledStatus to be returned instead of Status. Must be at least 5 minutes in the future."
         },
         language: %Schema{
-          type: :string,
-          nullable: true,
-          description: "ISO 639 language code for this status."
+          oneOf: [
+            %Schema{
+              type: :string,
+              nullable: true,
+              description: "ISO 639 language code for this status."
+            },
+            %Schema{
+              type: :array,
+              items: %Schema{
+                type: :string,
+                description: "ISO 639 language code for this status."
+              }
+            }
+          ]
         },
         # Pleroma-specific properties:
         preview: %Schema{
@@ -717,18 +741,23 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
     %Schema{
       nullable: true,
       type: :object,
-      required: [:options, :expires_in],
+      required: [:expires_in],
       properties: %{
         options: %Schema{
           type: :array,
           items: %Schema{type: :string},
           description: "Array of possible answers. Must be provided with `poll[expires_in]`."
         },
+        options_map: %Schema{
+          type: :array,
+          items: Helpers.multilang_map_of(%Schema{type: :string}),
+          description: "Array of possible answers. Must be provided with `poll[expires_in]`."
+        },
         expires_in: %Schema{
           type: :integer,
           nullable: true,
           description:
-            "Duration the poll should be open, in seconds. Must be provided with `poll[options]`"
+            "Duration the poll should be open, in seconds. Must be provided with `poll[options]` or `poll[options_map]`"
         },
         multiple: %Schema{
           allOf: [BooleanLike],
@@ -775,6 +804,12 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
               format: :html,
               description: "HTML-encoded status content"
             },
+            content_map:
+              Helpers.multilang_map_of(%Schema{
+                type: :string,
+                format: :html,
+                description: "HTML-encoded status content"
+              }),
             sensitive: %Schema{
               type: :boolean,
               description: "Is this status marked as sensitive content?"
@@ -784,6 +819,12 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
               description:
                 "Subject or summary line, below which status content is collapsed until expanded"
             },
+            spoiler_text_map:
+              Helpers.multilang_map_of(%Schema{
+                type: :string,
+                description:
+                  "Subject or summary line, below which status content is collapsed until expanded"
+              }),
             created_at: %Schema{
               type: :string,
               format: "date-time",
@@ -822,11 +863,22 @@ defmodule Pleroma.Web.ApiSpec.StatusOperation do
             type: :string,
             description: "Raw source of status content"
           },
+          text_map:
+            Helpers.multilang_map_of(%Schema{
+              type: :string,
+              description: "Raw source of status content"
+            }),
           spoiler_text: %Schema{
             type: :string,
             description:
               "Subject or summary line, below which status content is collapsed until expanded"
           },
+          spoiler_text_map:
+            Helpers.multilang_map_of(%Schema{
+              type: :string,
+              description:
+                "Subject or summary line, below which status content is collapsed until expanded"
+            }),
           content_type: %Schema{
             type: :string,
             description: "The content type of the source"

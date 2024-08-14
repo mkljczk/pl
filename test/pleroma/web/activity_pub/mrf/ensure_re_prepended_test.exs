@@ -24,6 +24,41 @@ defmodule Pleroma.Web.ActivityPub.MRF.EnsureRePrependedTest do
       assert res["object"]["summary"] == "re: object-summary"
     end
 
+    test "it adds `re:` to summaryMap object when child summary and parent summary for some language equal" do
+      message = %{
+        "type" => "Create",
+        "object" => %{
+          "summary" => "object-summary",
+          "summaryMap" => %{
+            "a" => "object-summary",
+            "b" => "some-object-summary",
+            "c" => "another-object-summary"
+          },
+          "inReplyTo" => %Activity{
+            object: %Object{
+              data: %{
+                "summary" => "object-summary",
+                "summaryMap" => %{
+                  "a" => "unrelated-summary",
+                  "b" => "some-object-summary"
+                }
+              }
+            }
+          }
+        }
+      }
+
+      assert {:ok, res} = EnsureRePrepended.filter(message)
+
+      assert res["object"]["summaryMap"] == %{
+               "a" => "object-summary",
+               "b" => "re: some-object-summary",
+               "c" => "another-object-summary"
+             }
+
+      assert res["object"]["summary"] == "re: object-summary"
+    end
+
     test "it adds `re:` to summary object when child summary contains re-subject of parent summary " do
       message = %{
         "type" => "Create",

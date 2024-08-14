@@ -47,6 +47,16 @@ defmodule Pleroma.Web.ApiSpec.MediaOperation do
           type: :string,
           description: "A plain-text description of the media, for accessibility purposes."
         },
+        description_map:
+          Helpers.multilang_map_of(%Schema{
+            type: :string,
+            description: "A plain-text description of the media, for accessibility purposes."
+          }),
+        language: %Schema{
+          type: :string,
+          nullable: true,
+          description: "ISO 639 language code for this status."
+        },
         focus: %Schema{
           type: :string,
           description: "Two floating points (x,y), comma-delimited, ranging from -1.0 to 1.0."
@@ -87,6 +97,16 @@ defmodule Pleroma.Web.ApiSpec.MediaOperation do
         description: %Schema{
           type: :string,
           description: "A plain-text description of the media, for accessibility purposes."
+        },
+        description_map:
+          Helpers.multilang_map_of(%Schema{
+            type: :string,
+            description: "A plain-text description of the media, for accessibility purposes."
+          }),
+        language: %Schema{
+          type: :string,
+          nullable: true,
+          description: "ISO 639 language code for this status."
         },
         focus: %Schema{
           type: :string,

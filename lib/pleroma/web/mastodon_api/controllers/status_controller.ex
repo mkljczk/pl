@@ -206,6 +206,40 @@ defmodule Pleroma.Web.MastodonAPI.StatusController do
     |> do_create
   end
 
+  def create(
+        %{
+          assigns: %{user: _user},
+          private: %{open_api_spex: %{body_params: %{status_map: _}}}
+        } = conn,
+        _
+      ) do
+    create(
+      put_in(
+        conn,
+        [Access.key(:private), Access.key(:open_api_spex), Access.key(:body_params), :status],
+        ""
+      ),
+      %{}
+    )
+  end
+
+  def create(
+        %{
+          assigns: %{user: _user},
+          private: %{open_api_spex: %{body_params: %{media_ids: _}}}
+        } = conn,
+        _
+      ) do
+    create(
+      put_in(
+        conn,
+        [Access.key(:private), Access.key(:open_api_spex), Access.key(:body_params), :status],
+        ""
+      ),
+      %{}
+    )
+  end
+
   defp do_create(
          %{assigns: %{user: user}, private: %{open_api_spex: %{body_params: params}}} = conn
        ) do

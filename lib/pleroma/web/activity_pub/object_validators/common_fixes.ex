@@ -6,6 +6,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.CommonFixes do
   alias Pleroma.EctoType.ActivityPub.ObjectValidators
   alias Pleroma.Language.LanguageDetector
   alias Pleroma.Maps
+  alias Pleroma.MultiLanguage
   alias Pleroma.Object
   alias Pleroma.Object.Containment
   alias Pleroma.User
@@ -13,9 +14,6 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.CommonFixes do
   alias Pleroma.Web.ActivityPub.Utils
 
   require Pleroma.Constants
-
-  import Pleroma.EctoType.ActivityPub.ObjectValidators.LanguageCode,
-    only: [good_locale_code?: 1]
 
   import Pleroma.Web.Utils.Guards, only: [not_empty_string: 1]
 
@@ -149,7 +147,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.CommonFixes do
         get_language_from_content_map(object),
         get_language_from_content(object)
       ]
-      |> Enum.find(&good_locale_code?(&1))
+      |> Enum.find(&MultiLanguage.good_locale_code?(&1))
 
     if language do
       Map.put(object, "language", language)

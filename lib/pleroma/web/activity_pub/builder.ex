@@ -216,19 +216,51 @@ defmodule Pleroma.Web.ActivityPub.Builder do
 
   @spec note(ActivityDraft.t()) :: {:ok, map(), keyword()}
   def note(%ActivityDraft{} = draft) do
+    content_fields =
+      if draft.content_html_map do
+        case Map.keys(draft.content_html_map) do
+          ["und"] ->
+            %{"content" => Map.get(draft.content_html_map, "und")}
+
+          _ ->
+            %{
+              "contentMap" => draft.content_html_map,
+              "content" => Map.get(draft.content_html_map, draft.language)
+            }
+        end
+      else
+        %{"content" => draft.content_html}
+      end
+
+    summary_fields =
+      if draft.summary_map do
+        case Map.keys(draft.summary_map) do
+          ["und"] ->
+            %{"summary" => Map.get(draft.summary_map, "und")}
+
+          _ ->
+            %{
+              "summaryMap" => draft.summary_map,
+              "summary" => Map.get(draft.summary_map, draft.language)
+            }
+        end
+      else
+        %{"summary" => draft.summary}
+      end
+
     data =
       %{
         "type" => "Note",
         "to" => draft.to,
         "cc" => draft.cc,
-        "content" => draft.content_html,
-        "summary" => draft.summary,
         "sensitive" => draft.sensitive,
         "context" => draft.context,
         "attachment" => draft.attachments,
         "actor" => draft.user.ap_id,
         "tag" => Keyword.values(draft.tags) |> Enum.uniq()
       }
+      |> Map.merge(content_fields)
+      |> Map.merge(summary_fields)
       |> add_in_reply_to(draft.in_reply_to)
       |> add_quote(draft.quote_post)
       |> Map.merge(draft.extra)

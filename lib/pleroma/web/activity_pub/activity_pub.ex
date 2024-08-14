@@ -33,6 +33,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   import Ecto.Query
   import Pleroma.Web.ActivityPub.Utils
   import Pleroma.Web.ActivityPub.Visibility
+  import Pleroma.Web.Gettext
   import Pleroma.Webhook.Notify, only: [trigger_webhooks: 2]
 
   require Logger
@@ -1592,12 +1593,37 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> Enum.reverse()
   end
 
+  defp validate_media_description_map(%{} = map, language) do
+    with {:ok, %{}} <- Pleroma.MultiLanguage.validate_map(map),
+         true <- Pleroma.MultiLanguage.good_locale_code?(language) do
+      :ok
+    else
+      false -> :invalid_language
+      _ -> :error
+    end
+  end
+
+  defp validate_media_description_map(nil, _), do: :ok
+  defp validate_media_description_map(_, _), do: :error
+
   @spec upload(Upload.source(), keyword()) :: {:ok, Object.t()} | {:error, any()}
   def upload(file, opts \\ []) do
-    with {:ok, data} <- Upload.store(sanitize_upload_file(file), opts) do
+    with {_, :ok} <-
+           {:description_map,
+            validate_media_description_map(opts[:description_map], opts[:language])},
+         {:ok, data} <- Upload.store(sanitize_upload_file(file), opts) do
       obj_data = Maps.put_if_present(data, "actor", opts[:actor])
 
       Repo.insert(%Object{data: obj_data})
+    else
+      {:description_map, :invalid_language} ->
+        {:error, dgettext("errors", "valid language must be provided with description_map")}
+
+      {:description_map, _} ->
+        {:error, dgettext("errors", "description_map invalid")}
+
+      e ->
+        e
     end
   end
 

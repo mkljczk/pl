@@ -295,6 +295,41 @@ defmodule Pleroma.Web.ActivityPub.MRF.KeywordPolicyTest do
                end)
     end
 
+    test "replaces keyword in *Map" do
+      clear_config([:mrf_keyword, :replace], [{"opensource", "free software"}])
+
+      message = %{
+        "type" => "Create",
+        "to" => ["https://www.w3.org/ns/activitystreams#Public"],
+        "object" => %{
+          "content" => "unrelevant",
+          "contentMap" => %{
+            "a" => "ZFS is opensource",
+            "b" => "mew mew is also opensource"
+          },
+          "summary" => "unrelevant",
+          "summaryMap" => %{
+            "a" => "ZFS is very opensource",
+            "b" => "mew mew is also very opensource"
+          }
+        }
+      }
+
+      {:ok,
+       %{
+         "object" => %{
+           "contentMap" => %{
+             "a" => "ZFS is free software",
+             "b" => "mew mew is also free software"
+           },
+           "summaryMap" => %{
+             "a" => "ZFS is very free software",
+             "b" => "mew mew is also very free software"
+           }
+         }
+       }} = KeywordPolicy.filter(message)
+    end
+
     test "replaces keyword if string matches in history" do
       clear_config([:mrf_keyword, :replace], [{"opensource", "free software"}])
 

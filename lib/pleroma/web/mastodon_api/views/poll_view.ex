@@ -66,6 +66,7 @@ defmodule Pleroma.Web.MastodonAPI.PollView do
 
       {%{
          title: name,
+         title_map: option["nameMap"] || %{},
          votes_count: current_count
        }, current_count + count}
     end)

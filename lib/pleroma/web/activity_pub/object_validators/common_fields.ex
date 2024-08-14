@@ -50,7 +50,9 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.CommonFields do
       embeds_many(:tag, TagValidator)
 
       field(:name, :string)
+      field(:nameMap, ObjectValidators.ContentLanguageMap)
       field(:summary, :string)
+      field(:summaryMap, ObjectValidators.ContentLanguageMap)
 
       field(:context, :string)
 
