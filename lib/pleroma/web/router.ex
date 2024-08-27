@@ -631,6 +631,8 @@ defmodule Pleroma.Web.Router do
     get("/followed_tags", TagController, :show_followed)
 
     get("/preferences", AccountController, :preferences)
+
+    post("/bite", BiteController, :bite)
   end
 
   scope "/api/web", Pleroma.Web do

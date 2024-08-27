@@ -80,6 +80,10 @@ defmodule Pleroma.Web.Nodeinfo.Nodeinfo do
           bubble: !Config.restrict_unauthenticated_access?(:timelines, :bubble)
         },
         federatedTimelineAvailable: Config.get([:instance, :federated_timeline_available], true)
+      },
+      operations: %{
+        "com.shinolabs.api.bite": ["1.0.0"],
+        "jetzt.mia.ns.activitypub.accept.bite": ["1.0.0"]
       }
     }
   end

@@ -54,7 +54,8 @@
             "backgroundUrl": {
                 "@id": "sharkey:backgroundUrl",
                 "@type": "@id"
-            }
+            },
+            "Bite": "https://ns.mia.jetzt/as#Bite"
         }
     ]
 }

@@ -177,7 +177,8 @@ defmodule Pleroma.Web.ApiSpec.NotificationOperation do
         "pleroma:report",
         "move",
         "follow_request",
-        "poll"
+        "poll",
+        "bite"
       ],
       description: """
       The type of event that resulted in the notification.
@@ -190,6 +191,7 @@ defmodule Pleroma.Web.ApiSpec.NotificationOperation do
       - `move` - Someone moved their account
       - `pleroma:emoji_reaction` - Someone reacted with emoji to your status
       - `pleroma:report` - Someone was reported
+      - `bite` - Someone bit you
       """
     }
   end

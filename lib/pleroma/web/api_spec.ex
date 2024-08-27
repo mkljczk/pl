@@ -79,7 +79,7 @@ defmodule Pleroma.Web.ApiSpec do
         "x-tagGroups": [
           %{
             "name" => "Accounts",
-            "tags" => ["Account actions", "Retrieve account information"]
+            "tags" => ["Account actions", "Bites", "Retrieve account information"]
           },
           %{
             "name" => "Administration",

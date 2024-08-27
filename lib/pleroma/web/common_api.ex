@@ -578,4 +578,11 @@ defmodule Pleroma.Web.CommonAPI do
         nil
     end
   end
+
+  def bite(biting, bitten) do
+    with {:ok, bite_data, _} <- Builder.bite(biting, bitten),
+         {:ok, activity, _} <- Pipeline.common_pipeline(bite_data, local: true) do
+      {:ok, biting, bitten, activity}
+    end
+  end
 end
