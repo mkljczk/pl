@@ -148,7 +148,8 @@ defmodule Pleroma.Web.CommonAPI do
     end
   end
 
-  @spec unfollow(User.t(), Group.t()) :: {:ok, User.t(), Group.t(), Activity.t()} | {:error, any()}
+  @spec unfollow(User.t(), Group.t()) ::
+          {:ok, User.t(), Group.t(), Activity.t()} | {:error, any()}
   def join(user, group) do
     with {:ok, join_data, _} <- Builder.join(user, group),
          {:ok, activity, _} <- Pipeline.common_pipeline(join_data, local: true) do
