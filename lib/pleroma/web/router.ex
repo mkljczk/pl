@@ -189,7 +189,7 @@ defmodule Pleroma.Web.Router do
   end
 
   pipeline :well_known do
-    plug(:accepts, ["json", "jrd", "jrd+json", "xml", "xrd+xml"])
+    plug(:accepts, ["activity+json", "json", "jrd", "jrd+json", "xml", "xrd+xml"])
   end
 
   pipeline :config do
@@ -215,6 +215,10 @@ defmodule Pleroma.Web.Router do
   pipeline :http_signature do
     plug(Pleroma.Web.Plugs.HTTPSignaturePlug)
     plug(Pleroma.Web.Plugs.MappedSignatureToIdentityPlug)
+  end
+
+  pipeline :inbox_guard do
+    plug(Pleroma.Web.Plugs.InboxGuardPlug)
   end
 
   pipeline :static_fe do
@@ -672,7 +676,6 @@ defmodule Pleroma.Web.Router do
     get("/accounts/relationships", AccountController, :relationships)
     get("/accounts/familiar_followers", AccountController, :familiar_followers)
     get("/accounts/:id/lists", AccountController, :lists)
-    get("/accounts/:id/identity_proofs", AccountController, :identity_proofs)
     get("/endorsements", AccountController, :endorsements)
     get("/blocks", AccountController, :blocks)
     get("/mutes", AccountController, :mutes)
@@ -955,7 +958,7 @@ defmodule Pleroma.Web.Router do
   end
 
   scope "/", Pleroma.Web.ActivityPub do
-    pipe_through(:activitypub)
+    pipe_through([:activitypub, :inbox_guard])
     post("/inbox", ActivityPubController, :inbox)
     post("/users/:nickname/inbox", ActivityPubController, :inbox)
     post("/groups/:nickname/inbox", ActivityPubController, :inbox)
@@ -1023,7 +1026,7 @@ defmodule Pleroma.Web.Router do
 
   scope "/" do
     pipe_through([:pleroma_html, :authenticate, :require_admin])
-    live_dashboard("/phoenix/live_dashboard")
+    live_dashboard("/phoenix/live_dashboard", additional_pages: [oban: Oban.LiveDashboard])
   end
 
   # Test-only routes needed to test action dispatching and plug chain execution

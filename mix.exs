@@ -4,11 +4,11 @@ defmodule Pleroma.Mixfile do
   def project do
     [
       app: :pleroma,
-      version: version("2.6.52"),
-      elixir: "~> 1.13",
+      version: version("2.7.0"),
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: Mix.compilers(),
-      elixirc_options: [warnings_as_errors: warnings_as_errors()],
+      elixirc_options: [warnings_as_errors: warnings_as_errors(), prune_code_paths: false],
       xref: [exclude: [:eldap]],
       dialyzer: [plt_add_apps: [:mix, :eldap]],
       start_permanent: Mix.env() == :prod,
@@ -73,14 +73,16 @@ defmodule Pleroma.Mixfile do
   def application do
     [
       mod: {Pleroma.Application, []},
-      extra_applications: [
-        :logger,
-        :runtime_tools,
-        :comeonin,
-        :fast_sanitize,
-        :os_mon,
-        :ssl
-      ],
+      extra_applications:
+        [
+          :logger,
+          :runtime_tools,
+          :comeonin,
+          :fast_sanitize,
+          :os_mon,
+          :ssl,
+          :eldap
+        ] ++ logger_application(),
       included_applications: [:ex_syslogger]
     ]
   end
@@ -109,12 +111,29 @@ defmodule Pleroma.Mixfile do
     for s <- oauth_strategy_packages, do: {String.to_atom(s), ">= 0.0.0"}
   end
 
+  defp logger_application do
+    if Version.match?(System.version(), "<1.15.0-rc.0") do
+      []
+    else
+      [:logger_backends]
+    end
+  end
+
+  defp logger_deps do
+    if Version.match?(System.version(), "<1.15.0-rc.0") do
+      []
+    else
+      [{:logger_backends, "~> 1.0"}]
+    end
+  end
+
   # Specifies your project dependencies.
   #
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.3"},
+      {:phoenix,
+       git: "https://github.com/feld/phoenix", branch: "v1.7.14-websocket-headers", override: true},
       {:phoenix_ecto, "~> 4.4"},
       {:ecto_sql, "~> 3.10"},
       {:ecto_enum, "~> 1.4"},
@@ -126,7 +145,7 @@ defmodule Pleroma.Mixfile do
       {:telemetry_poller, "~> 1.0"},
       {:tzdata, "~> 1.0.3"},
       {:plug_cowboy, "~> 2.5"},
-      {:oban, "~> 2.17.9"},
+      {:oban, "~> 2.18.0"},
       {:gettext, "~> 0.20"},
       {:bcrypt_elixir, "~> 2.2"},
       {:trailing_format_plug, "~> 0.0.7"},
@@ -134,14 +153,13 @@ defmodule Pleroma.Mixfile do
       {:html_entities, "~> 0.5", override: true},
       {:calendar, "~> 1.0"},
       {:cachex, "~> 3.2"},
-      {:poison, "~> 3.0", override: true},
-      {:tesla, "~> 1.8.0"},
-      {:castore, "~> 0.1"},
+      {:tesla, "~> 1.11"},
+      {:castore, "~> 1.0"},
       {:cowlib, "~> 2.9", override: true},
       {:gun, "~> 2.0.0-rc.1", override: true},
       {:finch, "~> 0.15"},
       {:jason, "~> 1.2"},
-      {:mogrify, "~> 0.8.0"},
+      {:mogrify, "~> 0.9.0", override: "true"},
       {:ex_aws, "~> 2.1.6"},
       {:ex_aws_s3, "~> 2.0"},
       {:sweet_xml, "~> 0.7.2"},
@@ -152,6 +170,8 @@ defmodule Pleroma.Mixfile do
       {:swoosh, "~> 1.16.9"},
       {:phoenix_swoosh, "~> 1.1"},
       {:gen_smtp, "~> 0.13"},
+      {:mua, "~> 0.2.0"},
+      {:mail, "~> 0.3.0"},
       {:ex_syslogger, "~> 1.4"},
       {:floki, "~> 0.35"},
       {:timex, "~> 3.6"},
@@ -173,7 +193,7 @@ defmodule Pleroma.Mixfile do
        ref: "b647d0deecaa3acb140854fe4bda5b7e1dc6d1c8"},
       {:captcha,
        git: "https://git.pleroma.social/pleroma/elixir-libraries/elixir-captcha.git",
-       ref: "90f6ce7672f70f56708792a98d98bd05176c9176"},
+       ref: "6630c42aaaab124e697b4e513190c89d8b64e410"},
       {:restarter, path: "./restarter"},
       {:majic, "~> 1.0"},
       {:open_api_spex, "~> 3.16"},
@@ -184,9 +204,13 @@ defmodule Pleroma.Mixfile do
       {:exile, "~> 0.10.0"},
       {:bandit, "~> 1.5.2"},
       {:websock_adapter, "~> 0.5.6"},
+      {:oban_live_dashboard, "~> 0.1.1"},
+      {:multipart, "~> 0.4.0", optional: true},
+      {:argon2_elixir, "~> 4.0"},
 
       ## dev & test
       {:phoenix_live_reload, "~> 1.3.3", only: :dev},
+      {:poison, "~> 3.0", only: :test},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:ex_machina, "~> 2.4", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
@@ -197,7 +221,7 @@ defmodule Pleroma.Mixfile do
       {:websockex, "~> 0.4.3", only: :test},
       {:benchee, "~> 1.0", only: :benchmark},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
-    ] ++ oauth_deps()
+    ] ++ oauth_deps() ++ logger_deps()
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

@@ -132,6 +132,8 @@ config :pleroma, Pleroma.Web.Endpoint,
   ]
 
 # Configures Elixir's Logger
+config :logger, backends: [:console]
+
 config :logger, :console,
   level: :debug,
   format: "\n$time $metadata[$level] $message\n",
@@ -342,7 +344,7 @@ config :pleroma, :manifest,
   icons: [
     %{
       src: "/static/logo.svg",
-      sizes: "144x144",
+      sizes: "512x512",
       purpose: "any",
       type: "image/svg+xml"
     }
@@ -432,6 +434,11 @@ config :pleroma, :mrf_follow_bot, follower_nickname: nil
 
 config :pleroma, :mrf_inline_quote, template: "<bdi>RT:</bdi> {url}"
 
+config :pleroma, :mrf_remote_report,
+  reject_all: false,
+  reject_anonymous: true,
+  reject_empty_message: true
+
 config :pleroma, :mrf_force_mention,
   mention_parent: true,
   mention_quoted: true
@@ -446,7 +453,7 @@ config :pleroma, :rich_media,
     Pleroma.Web.RichMedia.Parsers.TwitterCard,
     Pleroma.Web.RichMedia.Parsers.OEmbed
   ],
-  failure_backoff: 60_000,
+  timeout: 5_000,
   ttl_setters: [
     Pleroma.Web.RichMedia.Parser.TTL.AwsSignedUrl,
     Pleroma.Web.RichMedia.Parser.TTL.Opengraph
@@ -578,31 +585,25 @@ config :pleroma, Pleroma.User,
   ],
   email_blacklist: []
 
+# The Pruner :max_age must be longer than Worker :unique
+# value or it cannot enforce uniqueness.
 config :pleroma, Oban,
   repo: Pleroma.Repo,
   log: false,
   queues: [
     activity_expiration: 10,
     federator_incoming: 5,
-    federator_outgoing: 5,
-    ingestion_queue: 50,
+    federator_outgoing: 25,
     web_push: 50,
-    transmogrifier: 20,
-    background: 5,
+    background: 20,
     search_indexing: [limit: 10, paused: true],
-    slow: 1
+    slow: 5
   ],
-  plugins: [Oban.Plugins.Pruner],
+  plugins: [{Oban.Plugins.Pruner, max_age: 900}],
   crontab: [
     {"0 0 * * 0", Pleroma.Workers.Cron.DigestEmailsWorker},
-    {"0 0 * * *", Pleroma.Workers.Cron.NewUsersDigestWorker}
-  ]
-
-config :pleroma, :workers,
-  retries: [
-    federator_incoming: 5,
-    federator_outgoing: 5,
-    search_indexing: 2
+    {"0 0 * * *", Pleroma.Workers.Cron.NewUsersDigestWorker},
+    {"*/10 * * * *", Pleroma.Workers.Cron.AppCleanupWorker}
   ]
 
 config :pleroma, Pleroma.Formatter,
@@ -616,14 +617,17 @@ config :pleroma, Pleroma.Formatter,
 
 config :pleroma, :ldap,
   enabled: System.get_env("LDAP_ENABLED") == "true",
-  host: System.get_env("LDAP_HOST") || "localhost",
-  port: String.to_integer(System.get_env("LDAP_PORT") || "389"),
+  host: System.get_env("LDAP_HOST", "localhost"),
+  port: String.to_integer(System.get_env("LDAP_PORT", "389")),
   ssl: System.get_env("LDAP_SSL") == "true",
   sslopts: [],
   tls: System.get_env("LDAP_TLS") == "true",
   tlsopts: [],
-  base: System.get_env("LDAP_BASE") || "dc=example,dc=com",
-  uid: System.get_env("LDAP_UID") || "cn"
+  base: System.get_env("LDAP_BASE", "dc=example,dc=com"),
+  uid: System.get_env("LDAP_UID", "cn"),
+  # defaults to CAStore's Mozilla roots
+  cacertfile: System.get_env("LDAP_CACERTFILE", nil),
+  mail: System.get_env("LDAP_MAIL", "mail")
 
 oauth_consumer_strategies =
   System.get_env("OAUTH_CONSUMER_STRATEGIES")
@@ -716,6 +720,7 @@ config :pleroma, :rate_limit,
   timeline: {500, 3},
   search: [{1000, 10}, {1000, 30}],
   app_account_creation: {1_800_000, 25},
+  oauth_app_creation: {900_000, 5},
   relations_actions: {10_000, 10},
   relation_id_action: {60_000, 2},
   statuses_actions: {10_000, 15},
@@ -856,19 +861,19 @@ config :pleroma, :pools,
 config :pleroma, :hackney_pools,
   federation: [
     max_connections: 50,
-    timeout: 150_000
+    timeout: 10_000
   ],
   media: [
     max_connections: 50,
-    timeout: 150_000
+    timeout: 15_000
   ],
   rich_media: [
     max_connections: 50,
-    timeout: 150_000
+    timeout: 15_000
   ],
   upload: [
     max_connections: 25,
-    timeout: 300_000
+    timeout: 15_000
   ]
 
 config :pleroma, :majic_pool, size: 2
@@ -907,8 +912,8 @@ config :pleroma, Pleroma.User.Backup,
   purge_after_days: 30,
   limit_days: 7,
   dir: nil,
-  process_wait_time: 30_000,
-  process_chunk_size: 100
+  process_chunk_size: 100,
+  timeout: :timer.minutes(30)
 
 config :pleroma, ConcurrentLimiter, [
   {Pleroma.Search, [max_running: 30, max_waiting: 50]}

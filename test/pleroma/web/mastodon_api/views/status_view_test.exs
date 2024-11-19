@@ -201,7 +201,6 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
     assert_schema(status, "Status", Pleroma.Web.ApiSpec.spec())
   end
 
-  @tag capture_log: true
   test "returns a temporary ap_id based user for activities missing db users" do
     user = insert(:user)
 
@@ -344,6 +343,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
         pinned_at: nil,
         quotes_count: 0,
         bookmark_folder: nil,
+        list_id: nil,
         group: nil
       }
     }
@@ -390,7 +390,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
 
     assert status.pleroma.thread_muted == false
 
-    {:ok, activity} = CommonAPI.add_mute(user, activity)
+    {:ok, activity} = CommonAPI.add_mute(activity, user)
 
     status = StatusView.render("show.json", %{activity: activity, for: user})
 
@@ -468,7 +468,9 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
 
     # Create a public post quoting the private post
     quote_private =
-      insert(:note_activity, note: insert(:note, data: %{"quoteUrl" => private_object.data["id"]}))
+      insert(:note_activity,
+        note: insert(:note, data: %{"quoteUrl" => private_object.data["id"]})
+      )
 
     status = StatusView.render("show.json", %{activity: quote_private})
 
@@ -479,7 +481,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
 
     # After following the user, the quote is rendered
     follower = insert(:user)
-    CommonAPI.follow(follower, user)
+    CommonAPI.follow(user, follower)
 
     status = StatusView.render("show.json", %{activity: quote_private, for: follower})
     assert status.pleroma.quote.id == to_string(private.id)
@@ -912,6 +914,11 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
     status = StatusView.render("show.json", activity: activity)
 
     assert status.visibility == "list"
+    assert status.pleroma.list_id == nil
+
+    status = StatusView.render("show.json", activity: activity, for: user)
+
+    assert status.pleroma.list_id == list.id
   end
 
   test "has a field for parent visibility" do
@@ -938,7 +945,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
     status = StatusView.render("show.json", activity: post)
     refute status.edited_at
 
-    {:ok, _} = CommonAPI.update(poster, post, %{status: "mew mew"})
+    {:ok, _} = CommonAPI.update(post, poster, %{status: "mew mew"})
     edited = Pleroma.Activity.normalize(post)
 
     status = StatusView.render("show.json", activity: edited)

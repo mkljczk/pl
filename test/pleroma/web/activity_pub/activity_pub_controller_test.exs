@@ -573,7 +573,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       assert Activity.get_by_ap_id(data["id"])
     end
 
-    @tag capture_log: true
     test "it inserts an incoming activity into the database" <>
            "even if we can't fetch the user but have it in our db",
          %{conn: conn} do
@@ -657,9 +656,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       assert_receive {:mix_shell, :info, ["https://relay.mastodon.host/actor"]}
     end
 
-    @tag capture_log: true
     test "without valid signature, " <>
-           "it only accepts Create activities and requires enabled federation",
+           "it accepts Create activities and requires enabled federation",
          %{conn: conn} do
       data = File.read!("test/fixtures/mastodon-post-activity.json") |> Jason.decode!()
       non_create_data = File.read!("test/fixtures/mastodon-announce.json") |> Jason.decode!()
@@ -684,6 +682,54 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       conn
       |> post("/inbox", non_create_data)
       |> json_response(400)
+    end
+
+    # When activity is delivered to the inbox and we cannot immediately verify signature
+    # we capture all the params and process it later in the Oban job.
+    # Once we begin processing it through Oban we risk fetching the actor to validate the
+    # activity which just leads to inserting a new user to process a Delete not relevant to us.
+    test "Activities of certain types from an unknown actor are discarded", %{conn: conn} do
+      example_bad_types =
+        Pleroma.Constants.activity_types() --
+          Pleroma.Constants.allowed_activity_types_from_strangers()
+
+      Enum.each(example_bad_types, fn bad_type ->
+        params =
+          %{
+            "type" => bad_type,
+            "actor" => "https://unknown.mastodon.instance/users/somebody"
+          }
+          |> Jason.encode!()
+
+        conn
+        |> assign(:valid_signature, false)
+        |> put_req_header("content-type", "application/activity+json")
+        |> post("/inbox", params)
+        |> json_response(400)
+
+        assert all_enqueued() == []
+      end)
+    end
+
+    test "Unknown activity types are discarded", %{conn: conn} do
+      unknown_types = ["Poke", "Read", "Dazzle"]
+
+      Enum.each(unknown_types, fn bad_type ->
+        params =
+          %{
+            "type" => bad_type,
+            "actor" => "https://unknown.mastodon.instance/users/somebody"
+          }
+          |> Jason.encode!()
+
+        conn
+        |> assign(:valid_signature, true)
+        |> put_req_header("content-type", "application/activity+json")
+        |> post("/inbox", params)
+        |> json_response(400)
+
+        assert all_enqueued() == []
+      end)
     end
 
     test "accepts Add/Remove activities", %{conn: conn} do
@@ -1080,7 +1126,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       assert Instances.reachable?(sender_host)
     end
 
-    @tag capture_log: true
     test "it removes all follower collections but actor's", %{conn: conn} do
       [actor, recipient] = insert_pair(:user)
 
@@ -1143,7 +1188,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       assert json_response(ret_conn, 200)
     end
 
-    @tag capture_log: true
     test "forwarded report", %{conn: conn} do
       admin = insert(:user, is_admin: true)
       actor = insert(:user, local: false)
@@ -1219,7 +1263,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
       )
     end
 
-    @tag capture_log: true
     test "forwarded report from mastodon", %{conn: conn} do
       admin = insert(:user, is_admin: true)
       actor = insert(:user, local: false)
@@ -1229,7 +1272,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
 
       note = insert(:note_activity, user: reported_user)
 
-      Pleroma.Web.CommonAPI.favorite(another, note.id)
+      Pleroma.Web.CommonAPI.favorite(note.id, another)
 
       mock_json_body =
         "test/fixtures/mastodon/application_actor.json"
@@ -1276,6 +1319,27 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
         to: {admin.name, admin.email},
         html_body: ~r/#{note.data["object"]}/i
       )
+    end
+
+    test "it accepts an incoming Block", %{conn: conn, data: data} do
+      user = insert(:user)
+
+      data =
+        data
+        |> Map.put("type", "Block")
+        |> Map.put("to", [user.ap_id])
+        |> Map.put("cc", [])
+        |> Map.put("object", user.ap_id)
+
+      conn =
+        conn
+        |> assign(:valid_signature, true)
+        |> put_req_header("content-type", "application/activity+json")
+        |> post("/users/#{user.nickname}/inbox", data)
+
+      assert "ok" == json_response(conn, 200)
+      ObanHelpers.perform(all_enqueued(worker: ReceiverWorker))
+      assert Activity.get_by_ap_id(data["id"])
     end
   end
 
@@ -1407,7 +1471,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
 
       assert question = Object.normalize(activity, fetch: false)
 
-      {:ok, [activity], _object} = CommonAPI.vote(voter, question, [1])
+      {:ok, [activity], _object} = CommonAPI.vote(question, voter, [1])
 
       assert outbox_get =
                conn
@@ -1752,7 +1816,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
          %{conn: conn} do
       user = insert(:user, hide_followers: true)
       other_user = insert(:user)
-      {:ok, _other_user, user, _activity} = CommonAPI.follow(other_user, user)
+      {:ok, user, _other_user, _activity} = CommonAPI.follow(user, other_user)
 
       result =
         conn
@@ -1848,7 +1912,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubControllerTest do
          %{conn: conn} do
       user = insert(:user, hide_follows: true)
       other_user = insert(:user)
-      {:ok, user, _other_user, _activity} = CommonAPI.follow(user, other_user)
+      {:ok, _other_user, user, _activity} = CommonAPI.follow(other_user, user)
 
       result =
         conn

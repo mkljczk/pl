@@ -39,6 +39,8 @@ defmodule Pleroma.User do
   alias Pleroma.Web.OAuth
   alias Pleroma.Web.RelMe
   alias Pleroma.Workers.BackgroundWorker
+  alias Pleroma.Workers.DeleteWorker
+  alias Pleroma.Workers.UserRefreshWorker
 
   require Logger
   require Pleroma.Constants
@@ -425,6 +427,11 @@ defmodule Pleroma.User do
     end
   end
 
+  def image_description(image, default \\ "")
+
+  def image_description(%{"name" => name}, _default), do: name
+  def image_description(_, default), do: default
+
   # Should probably be renamed or removed
   @spec ap_id(User.t()) :: String.t()
   def ap_id(%User{nickname: nickname}), do: "#{Endpoint.url()}/users/#{nickname}"
@@ -476,6 +483,7 @@ defmodule Pleroma.User do
   def remote_user_changeset(struct \\ %User{local: false}, params) do
     bio_limit = Config.get([:instance, :user_bio_length], 5000)
     name_limit = Config.get([:instance, :user_name_length], 100)
+    fields_limit = Config.get([:instance, :max_remote_account_fields], 0)
 
     name =
       case params[:name] do
@@ -489,6 +497,7 @@ defmodule Pleroma.User do
       |> Map.put_new(:last_refreshed_at, NaiveDateTime.utc_now())
       |> truncate_if_exists(:name, name_limit)
       |> truncate_if_exists(:bio, bio_limit)
+      |> Map.update(:fields, [], &Enum.take(&1, fields_limit))
       |> truncate_fields_param()
       |> fix_follower_address()
       |> put_private_key()
@@ -608,16 +617,26 @@ defmodule Pleroma.User do
     |> validate_length(:bio, max: bio_limit)
     |> validate_length(:name, min: 1, max: name_limit)
     |> validate_inclusion(:actor_type, Pleroma.Constants.allowed_user_actor_types())
+    |> validate_image_description(:avatar_description, params)
+    |> validate_image_description(:header_description, params)
     |> put_fields()
     |> put_emoji()
     |> put_change_if_present(:bio, &{:ok, parse_bio(&1, struct)})
-    |> put_change_if_present(:avatar, &put_upload(&1, :avatar))
-    |> put_change_if_present(:banner, &put_upload(&1, :banner))
+    |> put_change_if_present(
+      :avatar,
+      &put_upload(&1, :avatar, Map.get(params, :avatar_description))
+    )
+    |> put_change_if_present(
+      :banner,
+      &put_upload(&1, :banner, Map.get(params, :header_description))
+    )
     |> put_change_if_present(:background, &put_upload(&1, :background))
     |> put_change_if_present(
       :pleroma_settings_store,
       &{:ok, Map.merge(struct.pleroma_settings_store, &1)}
     )
+    |> maybe_update_image_description(:avatar, Map.get(params, :avatar_description))
+    |> maybe_update_image_description(:banner, Map.get(params, :header_description))
     |> validate_fields(false)
   end
 
@@ -696,12 +715,40 @@ defmodule Pleroma.User do
     end
   end
 
-  defp put_upload(value, type) do
+  defp put_upload(value, type, description \\ nil) do
     with %Plug.Upload{} <- value,
-         {:ok, object} <- ActivityPub.upload(value, type: type) do
+         {:ok, object} <- ActivityPub.upload(value, type: type, description: description) do
       {:ok, object.data}
     end
   end
+
+  defp validate_image_description(changeset, key, params) do
+    description_limit = Config.get([:instance, :description_limit], 5_000)
+    description = Map.get(params, key)
+
+    if is_binary(description) and String.length(description) > description_limit do
+      changeset
+      |> add_error(key, "#{key} is too long")
+    else
+      changeset
+    end
+  end
+
+  defp maybe_update_image_description(changeset, image_field, description)
+       when is_binary(description) do
+    with {:image_missing, true} <- {:image_missing, not changed?(changeset, image_field)},
+         {:existing_image, %{"id" => id}} <-
+           {:existing_image, Map.get(changeset.data, image_field)},
+         {:object, %Object{} = object} <- {:object, Object.get_by_ap_id(id)},
+         {:ok, object} <- Object.update_data(object, %{"name" => description}) do
+      put_change(changeset, image_field, object.data)
+    else
+      {:description_too_long, true} -> {:error}
+      _ -> changeset
+    end
+  end
+
+  defp maybe_update_image_description(changeset, _, _), do: changeset
 
   def update_as_admin_changeset(struct, params) do
     struct
@@ -760,7 +807,8 @@ defmodule Pleroma.User do
   end
 
   def force_password_reset_async(user) do
-    BackgroundWorker.enqueue("force_password_reset", %{"user_id" => user.id})
+    BackgroundWorker.new(%{"op" => "force_password_reset", "user_id" => user.id})
+    |> Oban.insert()
   end
 
   @spec force_password_reset(User.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
@@ -1242,7 +1290,8 @@ defmodule Pleroma.User do
   def update_and_set_cache(changeset) do
     with {:ok, user} <- Repo.update(changeset, stale_error_field: :id) do
       if get_change(changeset, :raw_fields) do
-        BackgroundWorker.enqueue("verify_fields_links", %{"user_id" => user.id})
+        BackgroundWorker.new(%{"op" => "verify_fields_links", "user_id" => user.id})
+        |> Oban.insert()
       end
 
       set_cache(user)
@@ -1613,11 +1662,11 @@ defmodule Pleroma.User do
               )) ||
              {:ok, nil} do
       if duration > 0 do
-        Pleroma.Workers.MuteExpireWorker.enqueue(
-          "unmute_user",
-          %{"muter_id" => muter.id, "mutee_id" => mutee.id},
+        Pleroma.Workers.MuteExpireWorker.new(
+          %{"op" => "unmute_user", "muter_id" => muter.id, "mutee_id" => mutee.id},
           scheduled_at: expires_at
         )
+        |> Oban.insert()
       end
 
       @cachex.del(:user_cache, "muted_users_ap_ids:#{muter.ap_id}")
@@ -1860,7 +1909,8 @@ defmodule Pleroma.User do
   defp maybe_filter_on_ap_id(query, _ap_ids), do: query
 
   def set_activation_async(user, status \\ true) do
-    BackgroundWorker.enqueue("user_activation", %{"user_id" => user.id, "status" => status})
+    BackgroundWorker.new(%{"op" => "user_activation", "user_id" => user.id, "status" => status})
+    |> Oban.insert()
   end
 
   @spec set_activation([User.t()], boolean()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
@@ -2007,7 +2057,9 @@ defmodule Pleroma.User do
   def delete(%User{} = user) do
     # Purge the user immediately
     purge(user)
-    BackgroundWorker.enqueue("delete_user", %{"user_id" => user.id})
+
+    DeleteWorker.new(%{"op" => "delete_user", "user_id" => user.id})
+    |> Oban.insert()
   end
 
   # *Actually* delete the user from the DB
@@ -2180,20 +2232,20 @@ defmodule Pleroma.User do
 
   def fetch_by_ap_id(ap_id), do: ActivityPub.make_user_from_ap_id(ap_id)
 
+  @spec get_or_fetch_by_ap_id(String.t()) :: {:ok, User.t()} | {:error, any()}
   def get_or_fetch_by_ap_id(ap_id) do
-    cached_user = get_cached_by_ap_id(ap_id)
+    with cached_user = %User{} <- get_cached_by_ap_id(ap_id),
+         _ <- maybe_refresh(cached_user) do
+      {:ok, cached_user}
+    else
+      _ -> fetch_by_ap_id(ap_id)
+    end
+  end
 
-    maybe_fetched_user = needs_update?(cached_user) && fetch_by_ap_id(ap_id)
-
-    case {cached_user, maybe_fetched_user} do
-      {_, {:ok, %User{} = user}} ->
-        {:ok, user}
-
-      {%User{} = user, _} ->
-        {:ok, user}
-
-      _ ->
-        {:error, :not_found}
+  defp maybe_refresh(user) do
+    if needs_update?(user) do
+      UserRefreshWorker.new(%{"ap_id" => user.ap_id})
+      |> Oban.insert()
     end
   end
 

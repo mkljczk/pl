@@ -436,7 +436,7 @@ config :pleroma, Pleroma.Web.MediaProxy.Invalidation.Http,
 * `ignore_hosts`: list of hosts which will be ignored by the metadata parser. For example `["accounts.google.com", "xss.website"]`, defaults to `[]`.
 * `ignore_tld`: list TLDs (top-level domains) which will ignore for parse metadata. default is ["local", "localdomain", "lan"].
 * `parsers`: list of Rich Media parsers.
-* `failure_backoff`: Amount of milliseconds after request failure, during which the request will not be retried.
+* `timeout`: Amount of milliseconds after which the HTTP request is forcibly terminated.
 
 ## HTTP server
 
@@ -742,6 +742,21 @@ config :pleroma, Pleroma.Emails.Mailer,
   auth: :always
 ```
 
+An example for Mua adapter:
+
+```elixir
+config :pleroma, Pleroma.Emails.Mailer,
+  enabled: true,
+  adapter: Swoosh.Adapters.Mua,
+  relay: "mail.example.com",
+  port: 465,
+  auth: [
+    username: "YOUR_USERNAME@domain.tld",
+    password: "YOUR_SMTP_PASSWORD"
+  ],
+  protocol: :ssl
+```
+
 ### :email_notifications
 
 Email notifications settings.
@@ -853,7 +868,7 @@ config :logger,
   backends: [{ExSyslogger, :ex_syslogger}]
 
 config :logger, :ex_syslogger,
-  level: :warn
+  level: :warning
 ```
 
 Another example, keeping console output and adding the pid to syslog output:
@@ -862,7 +877,7 @@ config :logger,
   backends: [:console, {ExSyslogger, :ex_syslogger}]
 
 config :logger, :ex_syslogger,
-  level: :warn,
+  level: :warning,
   option: [:pid, :ndelay]
 ```
 
@@ -968,12 +983,13 @@ Pleroma account will be created with the same name as the LDAP user name.
 * `enabled`: enables LDAP authentication
 * `host`: LDAP server hostname
 * `port`: LDAP port, e.g. 389 or 636
-* `ssl`: true to use SSL, usually implies the port 636
+* `ssl`: true to use implicit SSL/TLS, usually port 636
 * `sslopts`: additional SSL options
-* `tls`: true to start TLS, usually implies the port 389
+* `tls`: true to use explicit TLS (STARTTLS), usually port 389
 * `tlsopts`: additional TLS options
 * `base`: LDAP base, e.g. "dc=example,dc=com"
 * `uid`: LDAP attribute name to authenticate the user, e.g. when "cn", the filter will be "cn=username,base"
+* `cacertfile`: Path to alternate CA root certificates file
 
 Note, if your LDAP server is an Active Directory server the correct value is commonly `uid: "cn"`, but if you use an
 OpenLDAP server the value may be `uid: "uid"`.
@@ -1171,6 +1187,7 @@ Control favicons for instances.
     3. the directory named by the TMP environment variable
     4. C:\TMP on Windows or /tmp on Unix-like operating systems
     5. as a last resort, the current working directory
+* `:timeout` an integer representing seconds
 
 ## Frontend management
 

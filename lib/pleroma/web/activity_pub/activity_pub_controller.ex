@@ -293,8 +293,15 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubController do
     json(conn, "ok")
   end
 
-  def inbox(%{assigns: %{valid_signature: false}, req_headers: req_headers} = conn, params) do
-    Federator.incoming_ap_doc(%{req_headers: req_headers, params: params})
+  def inbox(%{assigns: %{valid_signature: false}} = conn, params) do
+    Federator.incoming_ap_doc(%{
+      method: conn.method,
+      req_headers: conn.req_headers,
+      request_path: conn.request_path,
+      params: params,
+      query_string: conn.query_string
+    })
+
     json(conn, "ok")
   end
 
@@ -304,7 +311,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubController do
       post_inbox_relayed_create(conn, params)
     else
       conn
-      |> put_status(:bad_request)
+      |> put_status(403)
       |> json("Not federating")
     end
   end

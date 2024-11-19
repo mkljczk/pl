@@ -7,22 +7,35 @@ defmodule Pleroma.Workers.ReceiverWorker do
   alias Pleroma.User
   alias Pleroma.Web.Federator
 
-  use Pleroma.Workers.WorkerHelper, queue: "federator_incoming"
+  use Oban.Worker, queue: :federator_incoming, max_attempts: 5, unique: [period: :infinity]
 
-  @impl Oban.Worker
+  @impl true
 
   def perform(%Job{
-        args: %{"op" => "incoming_ap_doc", "req_headers" => req_headers, "params" => params}
+        args: %{
+          "op" => "incoming_ap_doc",
+          "method" => method,
+          "params" => params,
+          "req_headers" => req_headers,
+          "request_path" => request_path,
+          "query_string" => query_string
+        }
       }) do
     # Oban's serialization converts our tuple headers to lists.
     # Revert it for the signature validation.
     req_headers = Enum.into(req_headers, [], &List.to_tuple(&1))
 
-    conn_data = %{params: params, req_headers: req_headers}
+    conn_data = %Plug.Conn{
+      method: method,
+      params: params,
+      req_headers: req_headers,
+      request_path: request_path,
+      query_string: query_string
+    }
 
-    with {:ok, %User{} = _actor} <- User.get_or_fetch_by_ap_id(conn_data.params["actor"]),
+    with {:ok, %User{}} <- User.get_or_fetch_by_ap_id(conn_data.params["actor"]),
          {:ok, _public_key} <- Signature.refetch_public_key(conn_data),
-         {:signature, true} <- {:signature, HTTPSignatures.validate_conn(conn_data)},
+         {:signature, true} <- {:signature, Signature.validate_signature(conn_data)},
          {:ok, res} <- Federator.perform(:incoming_ap_doc, params) do
       {:ok, res}
     else
@@ -38,20 +51,34 @@ defmodule Pleroma.Workers.ReceiverWorker do
     end
   end
 
-  @impl Oban.Worker
+  @impl true
   def timeout(%_{args: %{"timeout" => timeout}}), do: timeout
 
   def timeout(_job), do: :timer.seconds(5)
 
+  defp process_errors({:error, {:error, _} = error}), do: process_errors(error)
+
   defp process_errors(errors) do
     case errors do
-      {:error, :origin_containment_failed} -> {:cancel, :origin_containment_failed}
+      # User fetch failures
+      {:error, :not_found} = reason -> {:cancel, reason}
+      {:error, :forbidden} = reason -> {:cancel, reason}
+      # Inactive user
+      {:error, {:user_active, false} = reason} -> {:cancel, reason}
+      # Validator will error and return a changeset error
+      # e.g., duplicate activities or if the object was deleted
+      {:error, {:validate, {:error, _changeset} = reason}} -> {:cancel, reason}
+      # Duplicate detection during Normalization
       {:error, :already_present} -> {:cancel, :already_present}
-      {:error, {:validate_object, reason}} -> {:cancel, reason}
-      {:error, {:error, {:validate, reason}}} -> {:cancel, reason}
-      {:error, {:reject, reason}} -> {:cancel, reason}
+      # MRFs will return a reject
+      {:error, {:reject, _} = reason} -> {:cancel, reason}
+      # HTTP Sigs
       {:signature, false} -> {:cancel, :invalid_signature}
-      {:error, {:error, reason = "Object has been deleted"}} -> {:cancel, reason}
+      # Origin / URL validation failed somewhere possibly due to spoofing
+      {:error, :origin_containment_failed} -> {:cancel, :origin_containment_failed}
+      # Unclear if this can be reached
+      {:error, {:side_effects, {:error, :no_object_actor}} = reason} -> {:cancel, reason}
+      # Catchall
       {:error, _} = e -> e
       e -> {:error, e}
     end

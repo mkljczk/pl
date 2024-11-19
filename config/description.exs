@@ -1229,79 +1229,6 @@ config :pleroma, :config_description, [
     ]
   },
   %{
-    group: :logger,
-    type: :group,
-    description: "Logger-related settings",
-    children: [
-      %{
-        key: :backends,
-        type: [:atom, :tuple, :module],
-        description:
-          "Where logs will be sent, :console - send logs to stdout, { ExSyslogger, :ex_syslogger } - to syslog, Quack.Logger - to Slack.",
-        suggestions: [:console, {ExSyslogger, :ex_syslogger}]
-      }
-    ]
-  },
-  %{
-    group: :logger,
-    type: :group,
-    key: :ex_syslogger,
-    label: "ExSyslogger",
-    description: "ExSyslogger-related settings",
-    children: [
-      %{
-        key: :level,
-        type: {:dropdown, :atom},
-        description: "Log level",
-        suggestions: [:debug, :info, :warning, :error]
-      },
-      %{
-        key: :ident,
-        type: :string,
-        description:
-          "A string that's prepended to every message, and is typically set to the app name",
-        suggestions: ["pleroma"]
-      },
-      %{
-        key: :format,
-        type: :string,
-        description: "Default: \"$date $time [$level] $levelpad$node $metadata $message\"",
-        suggestions: ["$metadata[$level] $message"]
-      },
-      %{
-        key: :metadata,
-        type: {:list, :atom},
-        suggestions: [:request_id]
-      }
-    ]
-  },
-  %{
-    group: :logger,
-    type: :group,
-    key: :console,
-    label: "Console Logger",
-    description: "Console logger settings",
-    children: [
-      %{
-        key: :level,
-        type: {:dropdown, :atom},
-        description: "Log level",
-        suggestions: [:debug, :info, :warning, :error]
-      },
-      %{
-        key: :format,
-        type: :string,
-        description: "Default: \"$date $time [$level] $levelpad$node $metadata $message\"",
-        suggestions: ["$metadata[$level] $message"]
-      },
-      %{
-        key: :metadata,
-        type: {:list, :atom},
-        suggestions: [:request_id]
-      }
-    ]
-  },
-  %{
     group: :pleroma,
     key: :frontend_configurations,
     type: :group,
@@ -2088,23 +2015,6 @@ config :pleroma, :config_description, [
   },
   %{
     group: :pleroma,
-    key: :workers,
-    type: :group,
-    description: "Includes custom worker options not interpretable directly by `Oban`",
-    children: [
-      %{
-        key: :retries,
-        type: {:keyword, :integer},
-        description: "Max retry attempts for failed jobs, per `Oban` queue",
-        suggestions: [
-          federator_incoming: 5,
-          federator_outgoing: 5
-        ]
-      }
-    ]
-  },
-  %{
-    group: :pleroma,
     key: Pleroma.Web.Metadata,
     type: :group,
     description: "Metadata-related settings",
@@ -2174,11 +2084,11 @@ config :pleroma, :config_description, [
         ]
       },
       %{
-        key: :failure_backoff,
+        key: :timeout,
         type: :integer,
         description:
-          "Amount of milliseconds after request failure, during which the request will not be retried.",
-        suggestions: [60_000]
+          "Amount of milliseconds after which the HTTP request is forcibly terminated.",
+        suggestions: [5_000]
       }
     ]
   },
@@ -2331,14 +2241,8 @@ config :pleroma, :config_description, [
         label: "SSL options",
         type: :keyword,
         description: "Additional SSL options",
-        suggestions: [cacertfile: "path/to/file/with/PEM/cacerts", verify: :verify_peer],
+        suggestions: [verify: :verify_peer],
         children: [
-          %{
-            key: :cacertfile,
-            type: :string,
-            description: "Path to file with PEM encoded cacerts",
-            suggestions: ["path/to/file/with/PEM/cacerts"]
-          },
           %{
             key: :verify,
             type: :atom,
@@ -2358,14 +2262,8 @@ config :pleroma, :config_description, [
         label: "TLS options",
         type: :keyword,
         description: "Additional TLS options",
-        suggestions: [cacertfile: "path/to/file/with/PEM/cacerts", verify: :verify_peer],
+        suggestions: [verify: :verify_peer],
         children: [
-          %{
-            key: :cacertfile,
-            type: :string,
-            description: "Path to file with PEM encoded cacerts",
-            suggestions: ["path/to/file/with/PEM/cacerts"]
-          },
           %{
             key: :verify,
             type: :atom,
@@ -2382,11 +2280,25 @@ config :pleroma, :config_description, [
       },
       %{
         key: :uid,
-        label: "UID",
+        label: "UID Attribute",
         type: :string,
         description:
           "LDAP attribute name to authenticate the user, e.g. when \"cn\", the filter will be \"cn=username,base\"",
         suggestions: ["cn"]
+      },
+      %{
+        key: :cacertfile,
+        label: "CACertfile",
+        type: :string,
+        description: "Path to CA certificate file"
+      },
+      %{
+        key: :mail,
+        label: "Mail Attribute",
+        type: :string,
+        description:
+          "LDAP attribute name to use as the email address when automatically registering the user on first login",
+        suggestions: ["mail"]
       }
     ]
   },
@@ -3429,19 +3341,18 @@ config :pleroma, :config_description, [
         suggestions: [7]
       },
       %{
-        key: :process_wait_time,
-        type: :integer,
-        label: "Process Wait Time",
-        description:
-          "The amount of time to wait for backup to report progress, in milliseconds. If no progress is received from the backup job for that much time, terminate it and deem it failed.",
-        suggestions: [30_000]
-      },
-      %{
         key: :process_chunk_size,
         type: :integer,
         label: "Process Chunk Size",
         description: "The number of activities to fetch in the backup job for each chunk.",
         suggestions: [100]
+      },
+      %{
+        key: :timeout,
+        type: :integer,
+        label: "Timeout",
+        description: "The amount of time to wait for backup to complete in seconds.",
+        suggestions: [1_800]
       }
     ]
   },
