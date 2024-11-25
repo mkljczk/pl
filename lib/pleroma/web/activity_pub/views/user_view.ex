@@ -211,8 +211,17 @@ defmodule Pleroma.Web.ActivityPub.UserView do
         }
       ]
     }
-    |> Map.merge(maybe_make_image(&User.avatar_url/2, "icon", user))
-    |> Map.merge(maybe_make_image(&User.banner_url/2, "image", user))
+    |> Map.merge(
+      maybe_make_image(&User.avatar_url/2, User.image_description(user.avatar, nil), "icon", user)
+    )
+    |> Map.merge(
+      maybe_make_image(
+        &User.banner_url/2,
+        User.image_description(user.banner, nil),
+        "image",
+        user
+      )
+    )
     |> Map.merge(Utils.make_json_ld_header())
   end
 
